@@ -1,0 +1,112 @@
+<html>
+    <body>
+        <h1 style = "position: absolute; top: 50%; left:  50%; transform: translate(-50%, -50%);">Hello World</h1>
+            
+    <!--Build canvas upon which current mnist image is shown-->
+            
+            
+            <!-- <div style="
+                width: 30%;
+                height: 30%;
+                max-width: 300px;
+                margin: 50 auto; /* Center horizontally */
+                padding: 15px;
+                border: 1px solid #eee;
+                border-radius: 0px;
+                box-shadow: 0 20px 40px rgba(0,0,0,.8);
+                background-color: rgb(85, 26, 26);
+                position: absolute; /* Added for positioning */
+                left: 50%; /* Move to center */
+                top: 60%;
+                transform: translateX(-50%); /* Adjust for exact centering */
+            ">
+                
+                <div style="width: 60%; height: 80%; background-color: rgb(121, 40, 228); margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; flex-direction: column; flex-wrap: wrap; gap: 10px;">
+                    <div style="width: 80%; background-color: rgb(200, 140, 8); position: relative; left: 10%"> `</div>
+                    <div style="position: absolute; top: 140px; left: 100px">
+                        YO mmmaam
+                    </div>
+                    
+                </div>
+            </div>  -->
+
+
+            <div style="position: absolute; top: 80px; left: 50%; transform: translate(-50%); display: flex; flex-direction: column; align-items: center;">
+                <img id="trainImage" src="" width="200px">
+                
+                <input type="text" style="
+                    width: 200px;
+                    padding: 8px;
+                    border: 1px solid #000000;
+                    margin-top: 10px;
+                    font-size: 14px;
+                    outline: none;
+                " placeholder="Enter text here...">
+            
+                <button style="margin-top: 10px;" onclick="updateImage('trainImage', document.getElementById('trainImage').value)">Update Image</button>
+            </div>
+
+
+            <!-- <div style="position: relative; top: 100px; left: 100px">
+                <div style="position: absolute; top: 140px; left: 100px">
+                    hiya im a absolute div
+                </div>
+            </div> -->
+                      
+            
+            <!-- <div style="
+                background-color: lightblue;
+                border: 2px solid #333;
+                padding: 20px;
+                margin: 15px;
+                border-radius: 5px;
+                display: flex;
+                justify-content: space-evenly;
+            " class = "container">
+            
+            <div style="
+                background-color: red;
+                width: 200px;
+                height: 200px;
+                border-radius: 5px;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            ">
+                <span style="color: white; font-weight: bold;">Red Box Container</span>
+            </div>
+            <div style="
+                background-color: red;
+                width: 200px;
+                height: 200px;
+                border-radius: 5px;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            ">
+                <span style="color: white; font-weight: bold;">Red Box Container #2</span>
+            </div>
+            </div>
+
+                
+            </div> -->
+
+        <!-- <button style = "position: absolute; top: 100px; left: 100px" onclick="alert('Hi')">Hi</button> -->
+    </body>
+</html>
+
+<!-- <script src="script.js"></script> -->
+<script>    
+    alert("righto!");
+    function updateImage(id,newSrc){
+
+        //Get current image or one image from current batch (or single img)
+        document.getElementById(id).src = newSrc;
+    }
+
+    window.onload = function() {
+        updateImage("trainImage", "file:///C:/Users/willw/Downloads/MNIST Dataset JPG format/MNIST - JPG - training/9/59835.jpg");
+    }
+</script>
