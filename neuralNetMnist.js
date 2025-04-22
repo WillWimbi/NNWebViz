@@ -231,7 +231,10 @@ function broadcastIdx(idx, targetShape, outBatch) {
 //By the time we're at this point in the code, we're assuming the dims are EITHER 1 or equal to the other tensor's dim.
 
 
-const transposeF = (x, shapeN, shapeLength) => {
+const transposeF = (tensor) => {
+  let x = tensor.data;
+  let shapeN = tensor.shape;
+  let shapeLength = shapeN.length;
   let out = [];
 
   if (shapeLength > 2) {
@@ -247,7 +250,7 @@ const transposeF = (x, shapeN, shapeLength) => {
     }
   }
 
-  return out;
+  return new Tensor(out, {requiresGrad: tensor.requiresGrad});
 };
 //naively just calculates gradient assuming they're the same length. 
 //won't error tho since map2 pads everything and handles scalars fine.
@@ -422,14 +425,12 @@ function initWeights(shape, scheme = "default") {
 //Big question: CHANGE: Should everything we use be a tensor? I originally planned on having everything
 //have requiresGrad = true, but we probably want to initialize a Tensor object to store our grads, so that would be just a pure nested arr but also eats memory..
 //hmmm....
-console.log("transpose:",transposeF(nArr1,inferShape(nArr1),inferShape(nArr1).length));
 class Tensor {
   constructor(data, { requiresGrad = false, name = "", hasWeights=false} = {}, opname=null,parents=null) {
     this.data = data;
     this.shape = inferShape(data);
     this.requiresGrad = requiresGrad;
     this.grad = requiresGrad ? zeros(this.shape) : null;
-    this._op = opname;
     this._parents = parents;
     this._backward = () => {}; //CHANGE: what? I don't yet understand
     this.name = name;
@@ -489,7 +490,6 @@ class Tensor {
   static reluForward(x) {
     const out = new Tensor(map2(x.data, x.data, v=>v>0?v:0),
                            { requiresGrad: x.requiresGrad });
-    out._op="relu"; 
     out._parents=[x];
     out._backward=()=>{
       if(!x.requiresGrad) return;
@@ -503,8 +503,6 @@ class Tensor {
   //CHANGE: DON'T GET DA LOGIC!!!
   /* ---------------- matmul (2‑D) ----------- */
   static matmulForward(a,b) {
-  a._op = "matmul";
-  b._op = "matmul";
   const A = a.data; 
   const B = b.data;
   const SA = a.shape;
@@ -661,7 +659,6 @@ class Tensor {
   //^^^^But wait, wouldn't we need outMatCols as well? a 3,7,5,4 x 3,7,4,5 would be a 3,7,5,5 tensor. Change made.
 
 
-  dynamicFuncGraph.push();
 
 
 
@@ -706,9 +703,9 @@ class Tensor {
     }
   }
 
+  dynamicFuncGraph.push(new Node("matmul", a, b, OUT));
 
-
-  return new Tensor(OUT);
+  return new Tensor(OUT, {requiresGrad: A.requiresGrad || B.requiresGrad});
     //lets imagine A=3,7,5,4 @ B=3,7,4,5.
     //outbatch was calculated to be [3,7] earlier in the code.
     //totalBatch = 3*7 = 21 was also calculated earlier in the code.
@@ -735,8 +732,17 @@ class Tensor {
   mul(o){ return Tensor.mulForward(this, o); }
   div(o){ return Tensor.divForward(this, o); }
   matmul(o){ return Tensor.matmulForward(this, o); }
-  transpose(){ return Tensor.transposeF(this.data,this.shape,this.shape.length); }
+  transpose(){ return transposeF(this); }
   relu(){ return Tensor.reluForward(this); }
+
+  static transpose(x){return transposeF(x);}
+  static add(a, b) { return Tensor.addForward(a, b); }
+  static sub(a, b) { return Tensor.subForward(a, b); }
+  static mul(a, b) { return Tensor.mulForward(a, b); }
+  static div(a, b) { return Tensor.divForward(a, b); }
+  static matmul(a, b) { return Tensor.matmulForward(a, b); }
+  static relu(x) { return Tensor.eltwise(x, null, x => Math.max(0, x), null, null, "relu"); }
+
 
   static addBackward(parent0,parent1,child){return Tensor.eltwise(parent0,parent1,null,g=>g, g=>g, "add",child)};
   static subBackward(parent0,parent1,child){return Tensor.eltwise(parent0,parent1,null,g=>g, g=>-g, "sub", child)};
@@ -887,11 +893,13 @@ console.log("matmul:",new Tensor([[2,1],[4,5]]).matmul(new Tensor([[2,4],[1,3]])
 console.log("divForward:",Tensor.divForward(new Tensor([[2,1],[4,5]]),new Tensor([[2,4],[1,3]])));
 console.log("divForward:",Tensor.divForward(new Tensor(nArr1),new Tensor(nArr2)));
 
-let r1 = new Tensor([[4,5],[6,2],[4,9]],[[4,5],[6,2],[4,9]],[[4,5],[6,2],[4,9]]);
+let r1 = new Tensor([[[4,5],[6,2],[4,9]],[[4,5],[6,2],[4,9]],[[4,5],[6,2],[4,9]]]);
 let r2 = new Tensor([[4,5],[6,2],[4,9]]);
 let scalarSizeTest = new Tensor([4]);
 console.log("brief test on mulwise: ", r1.mul(r2));
 console.log("infer scalar size test",inferShape(scalarSizeTest.data));
+console.log("trans test",r2.transpose());
+console.log("test on matmul", r1.matmul(r2.transpose()));
 //first grad test=
 
 let b1 = new Tensor([[[4,5],[6,2],[4,9]],[[4,5],[6,2],[4,9]],[[4,5],[6,2],[4,9]]], {requiresGrad: true}); 
@@ -926,13 +934,13 @@ console.log("in1.data:",in1.data);
 console.log("in2.data:",in2.data);
 console.log("in3.data:",in3.data);
 
-console.log("l1.op:",l1._op);
-console.log("l2.op:",l2._op);
-console.log("l3.op:",l3._op);
-console.log("l4.op:",l4._op);
-console.log("in1.op:",in1._op);
-console.log("in2.op:",in2._op);
-console.log("in3.op:",in3._op);
+console.log("l1.op:",l1);
+console.log("l2.op:",l2);
+console.log("l3.op:",l3);
+console.log("l4.op:",l4);
+console.log("in1.op:",in1);
+console.log("in2.op:",in2);
+console.log("in3.op:",in3);
 in3.grad = [1];
 in3.starterBackward();
 
