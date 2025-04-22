@@ -231,10 +231,7 @@ function broadcastIdx(idx, targetShape, outBatch) {
 //By the time we're at this point in the code, we're assuming the dims are EITHER 1 or equal to the other tensor's dim.
 
 
-const transposeF = (tensor) => {
-  let x = tensor.data;
-  let shapeN = tensor.shape;
-  let shapeLength = shapeN.length;
+const transposeF = (x, shapeN, shapeLength) => {
   let out = [];
 
   if (shapeLength > 2) {
@@ -250,7 +247,7 @@ const transposeF = (tensor) => {
     }
   }
 
-  return new Tensor(out, {requiresGrad: tensor.requiresGrad});
+  return out;
 };
 //naively just calculates gradient assuming they're the same length. 
 //won't error tho since map2 pads everything and handles scalars fine.
@@ -448,7 +445,9 @@ class Tensor {
       const out = new Tensor(map2(a.data, b.data, f),
                            { requiresGrad: a.requiresGrad || b.requiresGrad }, opName,[a, b]);
       const n = new Node(opName, a, b, out);
-      dynamicFuncGraph.push(n);
+      if (a.requiresGrad || b.requiresGrad) {
+        dynamicFuncGraph.push(n);
+      }
       return out;
                           }
 
@@ -703,8 +702,9 @@ class Tensor {
     }
   }
 
-  dynamicFuncGraph.push(new Node("matmul", a, b, OUT));
-
+  if (a.requiresGrad || b.requiresGrad) {
+    dynamicFuncGraph.push(new Node("matmul", a, b, OUT));
+}
   return new Tensor(OUT, {requiresGrad: A.requiresGrad || B.requiresGrad});
     //lets imagine A=3,7,5,4 @ B=3,7,4,5.
     //outbatch was calculated to be [3,7] earlier in the code.
@@ -732,10 +732,14 @@ class Tensor {
   mul(o){ return Tensor.mulForward(this, o); }
   div(o){ return Tensor.divForward(this, o); }
   matmul(o){ return Tensor.matmulForward(this, o); }
-  transpose(){ return transposeF(this); }
+  transpose(){ 
+    return new Tensor(transposeF(this.data,this.shape,this.shape.length), {requiresGrad: this.requiresGrad});
+  }
   relu(){ return Tensor.reluForward(this); }
 
-  static transpose(x){return transposeF(x);}
+  static transpose(x){
+    return new Tensor(transposeF(x.data,x.shape,x.shape.length), {requiresGrad: x.requiresGrad});
+  }
   static add(a, b) { return Tensor.addForward(a, b); }
   static sub(a, b) { return Tensor.subForward(a, b); }
   static mul(a, b) { return Tensor.mulForward(a, b); }
@@ -749,10 +753,26 @@ class Tensor {
   static mulBackward(parent0,parent1,child){return Tensor.eltwise(parent0,parent1,null,(g,y)=>g*y,(g,x)=>g*x,"mul",child)};
   static divBackward(parent0,parent1,child){return Tensor.eltwise(parent0,parent1,null,(g,y)=>g/y, (g,x,y)=>-g*x/(y*y), "div", child)};
   static matmulBackward(parent0,parent1,child){
+    let dP0, dP1;
+    if(parent0.shape.length == 2 && parent1.shape.length === 2){
+    //lets compute for parent0: (i.e a)
+    let gradHolderChild = new Tensor(child.grad, {requiresGrad: false});
+    dP0 = Tensor.matmul(gradHolderChild,Tensor.transpose(parent1));
+    dP1 = Tensor.matmul(Tensor.transpose(parent0),gradHolderChild);
+    }
+    // else if(parent0.shape.length == 2 && parent1.shape.length === 1){
+    //   let gradHolderChild = new Tensor(child.grad, {requiresGrad: false});
+    //   dP0 = Tensor.matmul(gradHolderChild,parent1);
+    //   dP1 = Tensor.matmul(parent0,gradHolderChild);
+    // } 
+    //then for if mat1d2d, 2d1d, and even 1d1d (rare)
+
+
+    //then if batching logic?
     
 
-
-    return parent0,parent1,null,g=>g, g=>g, "matmul",child
+    parent0.grad = dP0.data;
+    parent1.grad = dP1.data;
   };
   static transposeBackward(parent0,parent1){return Tensor.eltwise(parent0,parent1,null,g=>g, g=>g, "transpose")};
   static reluBackward(parent0){return Tensor.eltwise(parent0,null,null,g=>g, g=>g, "relu")}; //not sure yet here
@@ -886,6 +906,20 @@ class Linear{
   }
 }
 
+let f = new Tensor([[3,6,1,2],[3,6,9,9]],{requiresGrad:true}) //2,4
+f.grad = fill(inferShape(f.grad),()=>0)
+let f1 = new Tensor([[[3,6,1,2],[3,6,9,9]],[[3,6,1,2],[3,6,9,9]]]); //2,2,4
+
+console.log("testing for transpose stuff before...", f.data);
+console.log("testing for transpose stuff before...", f.grad);
+console.log("testing for transpose stuff after...", f.transpose().data);
+console.log("testing for transpose grad stuff after...", f.transpose().grad);
+
+console.log("testing for transpose stuff before...", f1.data);
+console.log("testing for transpose stuff before...", f1.grad);
+console.log("testing for transpose stuff after...", f1.transpose().data);
+console.log("testing for transpose grad stuff after...", f1.transpose().grad);
+
 
 console.log("addForward:",Tensor.addForward(new Tensor([[2,1],[1,3],[2,4]]),new Tensor([2,4])));
 console.log("matmul:",new Tensor([[2,1]]).matmul(new Tensor([[2,4],[1,3]])));
@@ -901,11 +935,11 @@ console.log("infer scalar size test",inferShape(scalarSizeTest.data));
 console.log("trans test",r2.transpose());
 console.log("test on matmul", r1.matmul(r2.transpose()));
 //first grad test=
-
-let b1 = new Tensor([[[4,5],[6,2],[4,9]],[[4,5],[6,2],[4,9]],[[4,5],[6,2],[4,9]]], {requiresGrad: true}); 
-let b2 = new Tensor([[4,5],[6,2],[4,9]], {requiresGrad: true});
-let out = b1.mul(b2);out.requiresGrad=true; // Shape [3,3,2]
-out.grad = zeros([3,3,2]); // Initialize gradient
+dynamicFuncGraph = [];
+let b1 = new Tensor([[4,5],[6,2],[4,9]], {requiresGrad: true}); 
+let b2 = new Tensor([[4,5,1],[6,2,1]], {requiresGrad: true}); // Shape [2,3]
+let out = b1.matmul(b2);out.requiresGrad=true; // Shape [3,3]
+out.grad = zeros([3,3]); // Initialize gradient
 
 out.grad.every((v,i) => v = 1);
 
