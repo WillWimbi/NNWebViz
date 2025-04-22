@@ -501,7 +501,7 @@ class Tensor {
 
   //CHANGE: DON'T GET DA LOGIC!!!
   /* ---------------- matmul (2‑D) ----------- */
-  static matmulForward(a,b) {
+  static matmulForward(a,b,a_bAreJustArrsAndIWantJustAnArr=false) {
   const A = a.data; 
   const B = b.data;
   const SA = a.shape;
@@ -510,14 +510,20 @@ class Tensor {
   const RB = SB.length;
 
     /* ----------  INNER LOW‑RANK KERNELS  ---------- */
-    function dot1d1d(a, b) {           // (n)·(n)->number
+    function dot1d1d(aTens, bTens) {           // (n)·(n)->number
+      
+      let a = aTens.data, b = bTens.data;
       let acc = 0; 
       for (let i = 0; i < a.length; i++) {
         acc += a[i] * b[i]; 
       }
-      return acc;
+      let newTens = new Tensor(acc, {requiresGrad: aTens.requiresGrad || bTens.requiresGrad});
+      dynamicFuncGraph.push(new Node("matmul", aTens, bTens, newTens));
+      return newTens;
     }
-    function mat2d1d(M, v) {           // (m,n)x(n)->(m)
+    function mat2d1d(MTens, vTens) {           // (m,n)x(n)->(m)
+      let M = MTens.data, v = vTens.data;
+
       const m = M.length;
       const n = M[0].length;
       const out = new Array(m).fill(0);
@@ -529,9 +535,12 @@ class Tensor {
         }
         out[i] = s;
       } 
-      return out;
+      let newTens = new Tensor(out, {requiresGrad: MTens.requiresGrad || vTens.requiresGrad});
+      dynamicFuncGraph.push(new Node("matmul", MTens, vTens, newTens));
+      return newTens;
     }
-    function mat1d2d(v, M) {           // (n)x(n,p)->(p)
+    function mat1d2d(vTens, MTens) {           // (n)x(n,p)->(p)
+      let v = vTens.data, M = MTens.data;
       const n = v.length;
       const p = M[0].length;
       const out = new Array(p).fill(0);
@@ -541,9 +550,12 @@ class Tensor {
           out[j] += v[k] * M[k][j];
         }
       }
-      return out;
+      let newTens = new Tensor(out, {requiresGrad: vTens.requiresGrad || MTens.requiresGrad});
+      dynamicFuncGraph.push(new Node("matmul", vTens, MTens, newTens));
+      return newTens;
     }
-    function mat2d2d(A, B) {           // (m,n)x(n,p)->(m,p)
+    function mat2d2d(ATens, BTens) {           // (m,n)x(n,p)->(m,p)
+      let A = ATens.data, B = BTens.data;
       const m = A.length;
       const n = A[0].length;
       const p = B[0].length;
@@ -560,7 +572,10 @@ class Tensor {
         }
         O[i] = row;
       }
-      return O;
+      let newTens = new Tensor(O, {requiresGrad: ATens.requiresGrad || BTens.requiresGrad});
+      console.log("newTens:",newTens.data);
+      dynamicFuncGraph.push(new Node("matmul", ATens, BTens, newTens));
+      return newTens;
 
     }
 
@@ -568,19 +583,19 @@ class Tensor {
   if(RA<=2 && RB<=2){
     if(RA===1 && RB===1){
       if(SA[0]!==SB[0])throwErr();
-      return new Tensor(dot1d1d(A,B));
+      return new Tensor(dot1d1d(a,b));
     }
     if(RA===2 && RB===1){
       if(SA[1]!==SB[0])throwErr();
-      return new Tensor(mat2d1d(A,B));
+      return new Tensor(mat2d1d(a,b));
     }
     if(RA===1 && RB===2){
       if(SA[0]!==SB[0])throwErr();
-      return new Tensor(mat1d2d(A,B));
+      return new Tensor(mat1d2d(a,b));
     }
     if(RA===2 && RB===2){
       if(SA[1]!==SB[0])throwErr();
-      return new Tensor(mat2d2d(A,B));
+      return new Tensor(mat2d2d(a,b));
     }
   }
 
@@ -603,13 +618,13 @@ class Tensor {
     // The ?? is the nullish coalescing operator which returns the right-hand value (1)
     // if the left-hand expression is null or undefined, otherwise returns the left-hand value
     // In this case, if the index is out of bounds (undefined), it defaults to 1
-    const a = batchA[batchA.length-1-i] ?? 1;
-    const b = batchB[batchB.length-1-i] ?? 1;
+    const aIs = batchA[batchA.length-1-i] ?? 1;
+    const bIs = batchB[batchB.length-1-i] ?? 1;
     //if the batchA or batchB is not the same, we throw an error
-    if(a!==b && a!==1 && b!==1)
+    if(aIs!==bIs && aIs!==1 && bIs!==1)
       throw new Error('Batch dims not broadcastable');
     //we set the outBatch to the maximum of the batchA or batchB
-    outBatch[maxBatchLen-1-i] = Math.max(a,b);
+    outBatch[maxBatchLen-1-i] = Math.max(aIs,bIs);
   }
   // ^^^^^ so lets walk through the above function ^^^^^
   //Imagine we have tensor 3,7,5,4 and tensor 2,7,4,5.
@@ -701,11 +716,11 @@ class Tensor {
       }
     }
   }
-
+  let outie = new Tensor(OUT, {requiresGrad: A.requiresGrad || B.requiresGrad});
   if (a.requiresGrad || b.requiresGrad) {
-    dynamicFuncGraph.push(new Node("matmul", a, b, OUT));
+    dynamicFuncGraph.push(new Node("matmul", a, b, outie));
 }
-  return new Tensor(OUT, {requiresGrad: A.requiresGrad || B.requiresGrad});
+  return outie;
     //lets imagine A=3,7,5,4 @ B=3,7,4,5.
     //outbatch was calculated to be [3,7] earlier in the code.
     //totalBatch = 3*7 = 21 was also calculated earlier in the code.
@@ -724,7 +739,12 @@ class Tensor {
     //now this second (inner) loop is i=1, so we do a 7,5,5 cur tensor accessed via cur[0] = 5x5 matrix.
     //We repeat 20 more times (21 cycles total)). We get a 3,7,5,5 matmul result. 
   }
+  //conv2d operations!!!!
+  static conv2dForward(x, filterSize,stride,padding){
 
+
+    
+  }
 
   /* ------ convenience wrappers ---------- */
   add(o){ return Tensor.addForward(this, o);}
@@ -736,7 +756,7 @@ class Tensor {
     return new Tensor(transposeF(this.data,this.shape,this.shape.length), {requiresGrad: this.requiresGrad});
   }
   relu(){ return Tensor.reluForward(this); }
-
+  conv2d(filterSize,stride,padding){ return Tensor.conv2dForward(this, filterSize,stride,padding); }
   static transpose(x){
     return new Tensor(transposeF(x.data,x.shape,x.shape.length), {requiresGrad: x.requiresGrad});
   }
@@ -746,7 +766,7 @@ class Tensor {
   static div(a, b) { return Tensor.divForward(a, b); }
   static matmul(a, b) { return Tensor.matmulForward(a, b); }
   static relu(x) { return Tensor.eltwise(x, null, x => Math.max(0, x), null, null, "relu"); }
-
+  //static conv2d(x, filterSize,stride,padding){ return Tensor.conv2dForward(x, filterSize,stride,padding); }
 
   static addBackward(parent0,parent1,child){return Tensor.eltwise(parent0,parent1,null,g=>g, g=>g, "add",child)};
   static subBackward(parent0,parent1,child){return Tensor.eltwise(parent0,parent1,null,g=>g, g=>-g, "sub", child)};
@@ -760,6 +780,8 @@ class Tensor {
     dP0 = Tensor.matmul(gradHolderChild,Tensor.transpose(parent1));
     dP1 = Tensor.matmul(Tensor.transpose(parent0),gradHolderChild);
     }
+    console.log("dP0:",dP0.data);
+    console.log("dP1:",dP1.data);
     // else if(parent0.shape.length == 2 && parent1.shape.length === 1){
     //   let gradHolderChild = new Tensor(child.grad, {requiresGrad: false});
     //   dP0 = Tensor.matmul(gradHolderChild,parent1);
@@ -776,7 +798,7 @@ class Tensor {
   };
   static transposeBackward(parent0,parent1){return Tensor.eltwise(parent0,parent1,null,g=>g, g=>g, "transpose")};
   static reluBackward(parent0){return Tensor.eltwise(parent0,null,null,g=>g, g=>g, "relu")}; //not sure yet here
-
+  //static conv2dBackward(parent0,parent1,child){}
 
   // static addForward(a, b) { return Tensor.eltwise(a, b, (x,y)=>x+y, g=>g, g=>g, "add"); } //CHANGE: I'm confused.... what is g here? We're essentially passing it as a function 
   // // to map2 yet I don't
@@ -941,11 +963,12 @@ let b2 = new Tensor([[4,5,1],[6,2,1]], {requiresGrad: true}); // Shape [2,3]
 let out = b1.matmul(b2);out.requiresGrad=true; // Shape [3,3]
 out.grad = zeros([3,3]); // Initialize gradient
 
-out.grad.every((v,i) => v = 1);
+//out.grad.every((v,i) => v = 1);
 
 settingGradOnes = fill(inferShape(out.grad),()=>1);
 out.grad = settingGradOnes;
 console.log("out.grad:",out.grad);
+console.log("dynamicFuncGraph:",dynamicFuncGraph);
 out.starterBackward();
 console.log("out.data:",out.data);
 console.log("out.grad:",out.grad);
