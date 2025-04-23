@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TensorFlow.js Neural Network</title>
+  <!-- Load TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+</head>
+<body>
+  <h1>Train a Neural Network in Browser</h1>
+  <canvas id="visualization"></canvas> <!-- Optional: For visualizing training -->
+  <script>
+    // Your TensorFlow.js code here
+    async function trainModel() {
+      // Define a simple sequential model
+      const model = tf.sequential();
+      model.add(tf.layers.dense({ units: 10, inputShape: [3], activation: 'relu' }));
+      model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
+
+      // Compile the model
+      model.compile({ optimizer: 'sgd', loss: 'meanSquaredError' });
+
+      // Dummy data for training (replace with user-generated data)
+      const xs = tf.tensor2d([[1, 2, 3], [4, 5, 6], [7, 8, 9]], [3, 3]);
+      const ys = tf.tensor2d([[0], [1], [0]], [3, 1]);
+
+      // Train the model in the browser
+      await model.fit(xs, ys, {
+        epochs: 100,
+        callbacks: {
+          onEpochEnd: (epoch, logs) => {
+            console.log(`Epoch ${epoch}: Loss = ${logs.loss}`);
+          }
+        }
+      });
+
+      // Example prediction
+      const prediction = model.predict(tf.tensor2d([[1, 2, 3]], [1, 3]));
+      console.log(prediction.dataSync());
+    }
+
+    // Run training when the page loads
+    window.onload = trainModel;
+  </script>
+</body>
+</html>

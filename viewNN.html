@@ -41,7 +41,7 @@
             }).join(' ');
             
             // Filter: only show logs containing ".grad", ".data", or ".op"
-            if (output.includes(".grad") || output.includes(".data") || output.includes(".op")) {
+            if (output.includes(".grad") || output.includes(".data") || output.includes(".op") || output.includes("dyn")) {
                 const consoleDiv = document.getElementById('console-output');
                 consoleDiv.innerHTML += output + '\n';
                 

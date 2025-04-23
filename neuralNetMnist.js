@@ -161,25 +161,40 @@ const mapBroadcast = (a, b, fn) => {
 //However this in theory would work for unequal dimensionns....
 //CHANGE BELOW: MUST not work for unequal dimensions. Also, if this is being used later on, for Add() funcs, 
 const map2 = (a, b, fn) => {
-  const isArrA = Array.isArray(a), isArrB = Array.isArray(b);
-  if(!isArrA || !isArrB) throw Error("map2: at least one input must be an array");
-  const aShape = inferShape(a);
-  const bShape = inferShape(b);
-  const aShapeLength = aShape.length;
-  const bShapeLength = bShape.length;
-  maxShapeLength = Math.max(aShape.length,bShape.length);
-  minShapeLength = Math.min(aShape.length,bShape.length);
-  // diff = aShape.length - bShape.length;
-  const [truey, incompatDims] = checkDimsCompatible(a,b,aShape,bShape,aShapeLength,bShapeLength,minShapeLength);
-  if(!truey) throw Error(`map2: incompatible dimensions: ${incompatDims}`);
-  // returnBroadCastedTensors(a,b,diff);
-  let aPadded = padArray(a,maxShapeLength);
-  let bPadded = padArray(b,maxShapeLength);
-  console.log('aPadded:', aPadded);
-  console.log('bPadded:', bPadded);
-  // both arrays ⇒ recurse over the *max* length; modulo‑index to broadcast 1‑length
-  return mapBroadcast(aPadded,bPadded,fn);
-}
+  // if (!Array.isArray(a) || !Array.isArray(b))
+  //     throw Error("map2: at least one input must be an array");
+
+  let aArr = a, bArr = b;
+  let aShape = inferShape(aArr);
+  let bShape = inferShape(bArr);
+
+  // strip leading singleton dims until ranks match
+  while (aShape.length > bShape.length && aShape[0] === 1) {
+    aArr = aArr[0]; aShape.shift();
+  }
+  while (bShape.length > aShape.length && bShape[0] === 1) {
+    bArr = bArr[0]; bShape.shift();
+  }
+
+  // if ranks now equal and both first dims are 1, strip one more
+  if (aShape.length === bShape.length && aShape[0] === 1 && bShape[0] === 1) {
+    aArr = aArr[0]; bArr = bArr[0];
+    aShape.shift(); bShape.shift();
+  }
+
+  // compatibility check
+  const [ok, bad] = checkDimsCompatible(
+        aArr, bArr, aShape, bShape,
+        aShape.length, bShape.length,
+        Math.min(aShape.length, bShape.length));
+  if (!ok) throw Error(`map2: incompatible dimensions: ${bad}`);
+
+  const rank = Math.max(aShape.length, bShape.length);
+  const aPadded = padArray(aArr, rank);
+  const bPadded = padArray(bArr, rank);
+
+  return mapBroadcast(aPadded, bPadded, fn);
+};
 const addArrays = (a, b) => map2(a, b, (x, y) => x + y);
 //^^^^ applying recursive func applier to addition. 
 
@@ -502,27 +517,41 @@ class Tensor {
   //CHANGE: DON'T GET DA LOGIC!!!
   /* ---------------- matmul (2‑D) ----------- */
   static matmulForward(a,b,a_bAreJustArrsAndIWantJustAnArr=false) {
-  const A = a.data; 
-  const B = b.data;
-  const SA = a.shape;
+  let A, B, SA, SB;
+  if(a_bAreJustArrsAndIWantJustAnArr===false){
+    A = a.data; 
+    B = b.data;
+    SA = a.shape;
+    SB = b.shape;
+  }
+  else{
+    A = a;
+    B = b;
+    SA = inferShape(a);
+    SB = inferShape(b);
+  }
   const RA = SA.length;
-  const SB = b.shape;
   const RB = SB.length;
 
+  console.log("SA", SA);
+  console.log("SB", SB);
+  console.log("RA", RA);
+  console.log("RB", RB);
     /* ----------  INNER LOW‑RANK KERNELS  ---------- */
-    function dot1d1d(aTens, bTens) {           // (n)·(n)->number
+    function dot1d1d(a, b) {           // (n)·(n)->number
       
-      let a = aTens.data, b = bTens.data;
+      // let a = aTens.data, b = bTens.data;
       let acc = 0; 
       for (let i = 0; i < a.length; i++) {
         acc += a[i] * b[i]; 
       }
-      let newTens = new Tensor(acc, {requiresGrad: aTens.requiresGrad || bTens.requiresGrad});
-      dynamicFuncGraph.push(new Node("matmul", aTens, bTens, newTens));
-      return newTens;
+      // let newTens = new Tensor(acc, {requiresGrad: aTens.requiresGrad || bTens.requiresGrad});
+      // dynamicFuncGraph.push(new Node("matmul", aTens, bTens, newTens));
+      // return newTens;
+      return acc;
     }
-    function mat2d1d(MTens, vTens) {           // (m,n)x(n)->(m)
-      let M = MTens.data, v = vTens.data;
+    function mat2d1d(M, v) {           // (m,n)x(n)->(m)
+      // let M = MTens.data, v = vTens.data;
 
       const m = M.length;
       const n = M[0].length;
@@ -535,12 +564,13 @@ class Tensor {
         }
         out[i] = s;
       } 
-      let newTens = new Tensor(out, {requiresGrad: MTens.requiresGrad || vTens.requiresGrad});
-      dynamicFuncGraph.push(new Node("matmul", MTens, vTens, newTens));
-      return newTens;
+      // let newTens = new Tensor(out, {requiresGrad: MTens.requiresGrad || vTens.requiresGrad});
+      // dynamicFuncGraph.push(new Node("matmul", MTens, vTens, newTens));
+      // return newTens;
+      return out;
     }
-    function mat1d2d(vTens, MTens) {           // (n)x(n,p)->(p)
-      let v = vTens.data, M = MTens.data;
+    function mat1d2d(v, M) {           // (n)x(n,p)->(p)
+      // let v = vTens.data, M = MTens.data;
       const n = v.length;
       const p = M[0].length;
       const out = new Array(p).fill(0);
@@ -550,12 +580,15 @@ class Tensor {
           out[j] += v[k] * M[k][j];
         }
       }
-      let newTens = new Tensor(out, {requiresGrad: vTens.requiresGrad || MTens.requiresGrad});
-      dynamicFuncGraph.push(new Node("matmul", vTens, MTens, newTens));
-      return newTens;
+      // let newTens = new Tensor(out, {requiresGrad: vTens.requiresGrad || MTens.requiresGrad});
+      // dynamicFuncGraph.push(new Node("matmul", vTens, MTens, newTens));
+      // return newTens;
+      return out;
     }
-    function mat2d2d(ATens, BTens) {           // (m,n)x(n,p)->(m,p)
-      let A = ATens.data, B = BTens.data;
+    function mat2d2d(A, B) {           // (m,n)x(n,p)->(m,p)
+      // let A = ATens.data, B = BTens.data;
+      console.log("A", A);
+      console.log("B", B);
       const m = A.length;
       const n = A[0].length;
       const p = B[0].length;
@@ -572,10 +605,11 @@ class Tensor {
         }
         O[i] = row;
       }
-      let newTens = new Tensor(O, {requiresGrad: ATens.requiresGrad || BTens.requiresGrad});
-      console.log("newTens:",newTens.data);
-      dynamicFuncGraph.push(new Node("matmul", ATens, BTens, newTens));
-      return newTens;
+      // let newTens = new Tensor(O, {requiresGrad: ATens.requiresGrad || BTens.requiresGrad});
+      // console.log("newTens:",newTens.data);
+      // dynamicFuncGraph.push(new Node("matmul", ATens, BTens, newTens));
+      // return newTens;
+      return O;
 
     }
 
@@ -583,19 +617,39 @@ class Tensor {
   if(RA<=2 && RB<=2){
     if(RA===1 && RB===1){
       if(SA[0]!==SB[0])throwErr();
-      return new Tensor(dot1d1d(a,b));
+      if(a_bAreJustArrsAndIWantJustAnArr===false){
+        let newTens = new Tensor(dot1d1d(A,B), {requiresGrad: a.requiresGrad || b.requiresGrad});
+        dynamicFuncGraph.push(new Node("matmul", a, b, newTens));
+        return newTens;
+      }
+      else{return dot1d1d(a,b);}
     }
     if(RA===2 && RB===1){
       if(SA[1]!==SB[0])throwErr();
-      return new Tensor(mat2d1d(a,b));
+      if(a_bAreJustArrsAndIWantJustAnArr===false){
+        let newTens = new Tensor(mat2d1d(A,B), {requiresGrad: a.requiresGrad || b.requiresGrad});
+        dynamicFuncGraph.push(new Node("matmul", a, b, newTens));
+        return newTens;
+      }
+      else{return mat2d1d(a,b);}
     }
     if(RA===1 && RB===2){
       if(SA[0]!==SB[0])throwErr();
-      return new Tensor(mat1d2d(a,b));
+      if(a_bAreJustArrsAndIWantJustAnArr===false){
+        let newTens = new Tensor(mat1d2d(A,B), {requiresGrad: a.requiresGrad || b.requiresGrad});
+        dynamicFuncGraph.push(new Node("matmul", a, b, newTens));
+        return newTens;
+      }
+      else{return mat1d2d(a,b);}
     }
     if(RA===2 && RB===2){
       if(SA[1]!==SB[0])throwErr();
-      return new Tensor(mat2d2d(a,b));
+      if(a_bAreJustArrsAndIWantJustAnArr===false){
+        let newTens = new Tensor(mat2d2d(A,B), {requiresGrad: a.requiresGrad || b.requiresGrad});
+        dynamicFuncGraph.push(new Node("matmul", a, b, newTens));
+        return newTens;
+      }
+      else{return mat2d2d(a,b);}
     }
   }
 
@@ -774,12 +828,12 @@ class Tensor {
   static divBackward(parent0,parent1,child){return Tensor.eltwise(parent0,parent1,null,(g,y)=>g/y, (g,x,y)=>-g*x/(y*y), "div", child)};
   static matmulBackward(parent0,parent1,child){
     let dP0, dP1;
-    if(parent0.shape.length == 2 && parent1.shape.length === 2){
+    // if(parent0.shape.length == 2 && parent1.shape.length === 2){
     //lets compute for parent0: (i.e a)
     let gradHolderChild = new Tensor(child.grad, {requiresGrad: false});
     dP0 = Tensor.matmul(gradHolderChild,Tensor.transpose(parent1));
     dP1 = Tensor.matmul(Tensor.transpose(parent0),gradHolderChild);
-    }
+    // }
     console.log("dP0:",dP0.data);
     console.log("dP1:",dP1.data);
     // else if(parent0.shape.length == 2 && parent1.shape.length === 1){
@@ -796,6 +850,7 @@ class Tensor {
     parent0.grad = dP0.data;
     parent1.grad = dP1.data;
   };
+  static conv2dBackward(){/*return Tensor.conv2d*/}
   static transposeBackward(parent0,parent1){return Tensor.eltwise(parent0,parent1,null,g=>g, g=>g, "transpose")};
   static reluBackward(parent0){return Tensor.eltwise(parent0,null,null,g=>g, g=>g, "relu")}; //not sure yet here
   //static conv2dBackward(parent0,parent1,child){}
@@ -941,7 +996,8 @@ console.log("testing for transpose stuff before...", f1.data);
 console.log("testing for transpose stuff before...", f1.grad);
 console.log("testing for transpose stuff after...", f1.transpose().data);
 console.log("testing for transpose grad stuff after...", f1.transpose().grad);
-
+console.log("inferring shape of lil", inferShape([2,1]));
+console.log("inferring 0 shape of lil", inferShape([2,1])[0].length);
 
 console.log("addForward:",Tensor.addForward(new Tensor([[2,1],[1,3],[2,4]]),new Tensor([2,4])));
 console.log("matmul:",new Tensor([[2,1]]).matmul(new Tensor([[2,4],[1,3]])));
@@ -956,12 +1012,25 @@ console.log("brief test on mulwise: ", r1.mul(r2));
 console.log("infer scalar size test",inferShape(scalarSizeTest.data));
 console.log("trans test",r2.transpose());
 console.log("test on matmul", r1.matmul(r2.transpose()));
+
+//first manual training loop
+let test = new Tensor([[[3,6,1,2],[3,6,9,9]],[[3,6,1,2],[3,6,9,9]]],{requiresGrad:true,hasWeights:true});
+let test2 = new Tensor([5,6,7,8],{requiresGrad:true,hasWeights:true});
+let outtie = test.matmul(test2);
+outtie.grad = [[1,1,1,1],[1,1,1,1]];
+outtie.starterBackward();
+
+console.log(".grad LOL JOKE. ACTUALLY fiRsT maTMUL data test:", outtie.data);
+console.log(".grad LOL JOKE. ACTUALLY fiRsT maTMUL grad test:", outtie.grad);
+
+
 //first grad test=
 dynamicFuncGraph = [];
 let b1 = new Tensor([[4,5],[6,2],[4,9]], {requiresGrad: true}); 
 let b2 = new Tensor([[4,5,1],[6,2,1]], {requiresGrad: true}); // Shape [2,3]
 let out = b1.matmul(b2);out.requiresGrad=true; // Shape [3,3]
 out.grad = zeros([3,3]); // Initialize gradient
+
 
 //out.grad.every((v,i) => v = 1);
 
@@ -1047,7 +1116,7 @@ console.log("ui3.grad:",ui3.grad);
 // fc2=Linear(10,5);
 // rl3=fc2.relu();
 // fc4=Linear(5,1);
-// //Will need to calculate softmax I think?
+// //Will need to calculate softmax
 // CrossEntropyLoss(fc4);
 
 ////something like this:

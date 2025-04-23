@@ -2,7 +2,16 @@ import torch
 import torch.nn as nn
 r=torch.tensor([1,2,3])
 
-# print(torch.tensor([1,2,3])/torch.tensor([2,2,2]))
+innie1=torch.tensor([[[3,6,1,2],[3,6,9,9]],[[3,6,1,2],[3,6,9,9]]],dtype=torch.float32)
+innie2=torch.tensor([5,6,7,8],dtype=torch.float32)
+outty = torch.matmul(innie1,innie2)
+print("matmully!",outty)
+# Create a tensor of ones with the same shape as outty and set it as the gradient
+outty.requires_grad_(True)  # Make sure outty requires gradients
+gradient = torch.ones_like(outty)  # Create gradient tensor
+outty.backward(gradient)  # Set all gradients to 1
+print("matmully graddy!",outty.grad)
+print("outty parents graddies!",)
 
 # Create tensors with shapes (20,3,2) and (5,4,3,2)
 tensor1 = torch.randn(1,20, 3, 2)  # Random tensor of shape (20,3,2)
