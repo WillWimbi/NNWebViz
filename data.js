@@ -64,7 +64,7 @@ export class MnistData {
         if (loadingIndicator) loadingIndicator.remove(); //remove loading screen
         img.width = img.naturalWidth; //so this is 784
         console.log("img.width: ",img.width);
-        img.height = img.naturalHeight;
+        img.height = img.naturalHeight; //what is naturalHeight?
 
         // Create a buffer to store the pixel data of all MNIST images
         // The buffer size is 65000 * 784 * 4 = 203,840,000 bytes
@@ -85,6 +85,7 @@ export class MnistData {
           // sWidth, sHeight: the width and height of the source rectangle
           // dx, dy: the destination x,y coordinates to draw to
           // dWidth, dHeight: the width and height to draw the image in the destination
+          // easier to use a canvas as a temporary holding ground for the image data.
           ctx.drawImage(img, 0, i * chunkSize, img.width, chunkSize, 0, 0, img.width, chunkSize);
 
           // ctx.getImageData(sx, sy, sw, sh, options) extracts pixel data from the canvas
@@ -102,7 +103,7 @@ export class MnistData {
           for (let j = 0; j < imageData.data.length / 4; j++) {
             // All channels hold an equal value since the image is grayscale, so
             // just read the blue channel.
-            //noramlize!!
+            //noramlize to between 0-1!!
             datasetBytesView[j] = imageData.data[j * 4] / 255;
 
             //so to my understanding imageData got a 28x width and basically 5000 height... confusing.

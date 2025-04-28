@@ -56,8 +56,54 @@
         background-color: #f0f0f0;
         }
     
-        .trash-icon {
+        .drop-zone {
+            position: relative;
+            width: 100%;
+            height:3px;
             
+            background-color: #00aeff;
+            text-align: center;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+
+        .drop-zone-active {
+            background-color: #66ccff; /* A lighter, mild highlight color */
+            box-shadow: 0 0 5px rgba(0, 174, 255, 0.5);
+            transition: all 0.2s ease;
+        }
+
+        .trash-icon {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            z-index: 10;
+        }
+
+        /* Container for target area and header */
+        .target-container {
+            display: flex;
+            flex-direction: column;
+            border: 2px solid black;
+            padding: 0;
+            min-height: 300px;
+            width: 200px;
+        }
+        
+        .target-container h4 {
+            margin: 0;
+            padding: 10px;
+            background-color: #e0e0e0;
+            text-align: center;
+            border-bottom: 1px solid #ccc;
+        }
+        
+        .target-area {
+            background-color: #f0f0f0;
+            min-height: 260px;
+            padding: 20px;
         }
     
         </style>
@@ -95,23 +141,49 @@
         <input type="text" value="10">
         
     </div> -->
-    <div class="container" style="display: flex; gap: 20px;"> <!--irrelevant extras form pedagogy-->
+    <div class="container" style="display: flex; gap: 20px;">
         <div class="source-area">
-            <div class="block" draggable="true" id="block1">
-                <h4 id="relu">ReLU Activation Function</h4>
-                
-
-                
+            <!-- Convolution -->
+            <div class="block" id="conv2d" draggable="true" data-type="conv2d">
+                <h4>Conv2D Layer</h4>
+                Kernel&nbsp;<input data-param="kernelSize"  placeholder="3">
+                Filters&nbsp;<input data-param="filters"    placeholder="32">
+                Strides&nbsp;<input data-param="strides"    placeholder="1">
             </div>
-            <div class="block" draggable="true" id="block2">
-                <!-- We'll put in an ability to have a little trash can icon here to remove layers!! <div class="flex"><> -->
-                <h4 id="dense">Linear Layer</h4>
-                    Input Channels:
-                <input type="text" placeholder="inputChannels" >
-                Output Channels:
-                <input type="text" placeholder="outputChannels" >
-
+            
+            <!-- Max-Pooling -->
+            <div class="block" id="maxpool" draggable="true" data-type="maxpool">
+                <h4>MaxPool2D</h4>
+                Pool&nbsp;<input data-param="poolSize" placeholder="2">
             </div>
+            
+            <!-- Activation: Sigmoid -->
+            <div class="block" id="sigmoid" draggable="true" data-type="sigmoid">
+                <h4>Sigmoid</h4>
+            </div>
+            
+            <!-- Activation: Tanh -->
+            <div class="block" id="tanh" draggable="true" data-type="tanh">
+                <h4>Tanh</h4>
+            </div>
+            
+            <!-- Loss / Compile block -->
+            <div class="block" id="loss" draggable="true" data-type="loss">
+                <h4>Compile / Loss</h4>
+                Optimizer&nbsp;
+                <select data-param="optimizer">
+                    <option value="sgd" selected>SGD</option>
+                    <option value="adam">Adam</option>
+                    <option value="rmsprop">RMSProp</option>
+                </select><br>
+                Loss&nbsp;
+                <select data-param="loss">
+                    <option value="categoricalCrossentropy">Categorical CE</option>
+                    <option value="binaryCrossentropy">Binary CE</option>
+                    <option value="meanSquaredError">MSE</option>
+                </select>
+            </div>
+
             <!-- //Conv2D layer
             //Sigmoid function
             //Tanh activation function
@@ -124,8 +196,10 @@
             //Absolute Error Loss -->
             <div class="block" draggable="true" id="block3">Box 3</div>
         </div>
-        <div class="target-area" id="target">
-            Drop boxes here
+        <div class="target-container">
+            <h4 id="default-text">Drop boxes here</h4>
+            <div class="target-area" id="target">
+            </div>
         </div>
     </div>
     <!-- <div style="width: 50px; height: 50px; background-color: red;">
@@ -140,18 +214,71 @@
 </html>
 <script>
     const blocks = document.querySelectorAll('.block');
-    
-
+    const targetArea = document.getElementById('target');
+    let cloneCount = 0;
     // let r = document.getElementById("source-area");
     // r.addEventListener("dragStart",function(event){
     //     event.preventDefault();
     // });
+
+
+    function createDropZonesInTarget() {
+        // Get existing drop zones to remove them before creating new ones
+        const existingDropZones = targetArea.querySelectorAll('.drop-zone');
+        //existingDropZones.forEach(zone => zone.remove());
+        // Create drop zones between blocks
+        const blocks = targetArea.querySelectorAll('.block');
+        // Add drop zones after each block
+        blocks.forEach(block => {
+            const dropZone = document.createElement('div');
+            dropZone.classList.add('drop-zone');
+            targetArea.insertBefore(dropZone, block);
+        });
+
+        // Add event listeners to drop zones
+        const dropZones = targetArea.querySelectorAll('.drop-zone');
+        dropZones.forEach(zone => {
+            zone.addEventListener('dragover', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.add('drop-zone-active');
+            });
+            
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('drop-zone-active');
+            });
+            
+            zone.addEventListener('drop', e => {
+                
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.remove('drop-zone-active');
+                const boxId = e.dataTransfer.getData('text/plain');
+                const origBox = document.getElementById(boxId);
+                const newBox = origBox.cloneNode(true);
+                newBox.id = `${boxId}-clone-${cloneCount++}`;
+                targetArea.insertBefore(newBox, zone);
+                addTrashIconToBlock(newBox);
+                const existingDropZones = targetArea.querySelectorAll('.drop-zone');
+                existingDropZones.forEach(zone => zone.remove());
+            });
+        });
+    }
+
+
+
+    //main runlogic
 
       // 1. Make blocks draggable
     blocks.forEach(function(box) {
         box.addEventListener('dragstart', function(event) {
         // Store which box is being dragged
         event.dataTransfer.setData('text/plain', box.id);
+        if (targetArea.children.length !== 0 ) {
+            createDropZonesInTarget();
+
+        }
+        //hmmmm....
         });
     });
 
@@ -162,16 +289,122 @@
 
 
     document.getElementById("target").addEventListener('drop', function(event){
+        event.preventDefault();
         let boxId = event.dataTransfer.getData('text/plain');
         let origBox = document.getElementById(boxId);
         const newBox = origBox.cloneNode(true);
-        newBox.id = boxId + '-clone';
+        newBox.id = `${boxId}-clone-${cloneCount++}`;
         document.getElementById("target").appendChild(newBox);
+        const defaultText = document.getElementById("default-text");
+        if (defaultText) {
+            defaultText.remove();
+        }
         // Add trash icon to the newly dropped block
         addTrashIconToBlock(newBox);
+        const existingDropZones = targetArea.querySelectorAll('.drop-zone');
+        existingDropZones.forEach(zone => zone.remove());
     });
 
+
+    //check model
+
+
+    // let childrenList = targetArea.children;
+    // childrenList.forEach(function(child){
+    //     addTrashIconToBlock(child);
+    // });
+    /* ——— minimalist compatibility checker ——— */
+    function shapeCheck() {
+        //something here, will fill out later but must check shape compatibility, and give err
+        //messages and little red highlight bars on the field input entries of the target area blocks, so in 2 funcs for now.
+        //shapeCheck will be called whenever a block is dropped, and for now will just say 'incomptible entries!'
+        //and light up red around all of them. No need for special logic yet.
+
+        const IMAGE_W  = 28, IMAGE_H = 28, IMAGE_C = 1;   // your dataset spec
+        let   shape    = [IMAGE_H, IMAGE_W, IMAGE_C];     // H,W,C  or  ["flat", len]
+        let   compiled = false;
+        const errs     = [];
+
+        const flatLen = s => s[0] === "flat" ? s[1] : s[0]*s[1]*s[2];
+
+        [...targetArea.querySelectorAll('.block')].forEach((b, idx) => {
+            const where = `@ block ${idx+1} (${b.dataset.type})`;
+
+            switch (b.dataset.type) {
+
+            /* 1 ——————————— Conv2D ——————————— */
+            case 'conv2d': {
+                if (shape[0] === "flat") {
+                errs.push(`Conv2D cannot follow a flat vector ${where}`);
+                break;
+                }
+                const k = +b.querySelector('[data-param="kernelSize"]').value;
+                const s = +b.querySelector('[data-param="strides"]').value;
+                const f = +b.querySelector('[data-param="filters"]').value;
+                if (!k||!s||!f) { errs.push(`Conv2D missing params ${where}`); break; }
+
+                const [h,w] = shape;
+                const outH = Math.floor((h - k) / s) + 1;
+                const outW = Math.floor((w - k) / s) + 1;
+                if (outH <= 0 || outW <= 0)
+                errs.push(`Conv2D kernel/stride too large ${where}`);
+                shape = [outH, outW, f];
+                break;
+            }
+
+            /* 2 ——————————— MaxPool ——————————— */
+            case 'maxpool': {
+                if (shape[0] === "flat") {
+                errs.push(`MaxPool cannot follow a flat vector ${where}`);
+                break;
+                }
+                const p = +b.querySelector('[data-param="poolSize"]').value;
+                if (!p) { errs.push(`MaxPool missing poolSize ${where}`); break; }
+
+                const [h,w,c] = shape;
+                const outH = Math.floor(h / p);
+                const outW = Math.floor(w / p);
+                if (!outH || !outW)
+                errs.push(`MaxPool poolSize too large ${where}`);
+                shape = [outH, outW, c];
+                break;
+            }
+
+            /* 3 ——————————— Dense ——————————— */
+            case 'dense': {
+                const inp = +b.querySelector('[data-param="inputChannels"]').value;
+                const out = +b.querySelector('[data-param="outputChannels"]').value;
+                if (!inp||!out) { errs.push(`Dense missing in/out ${where}`); break; }
+
+                const need = flatLen(shape);
+                if (inp !== need)
+                errs.push(`Dense expected input ${inp} but got ${need} ${where}`);
+                shape = ["flat", out];
+                break;
+            }
+
+            /* 4 ——————————— Compile / Loss ——————————— */
+            case 'loss': {
+                if (compiled) errs.push(`Multiple compile blocks – keep one ${where}`);
+                compiled = true;
+                // no shape change
+                break;
+            }
+
+            /* 5 ——————————— Stateless layers (relu, sigmoid, tanh) ——————————— */
+            default:
+                /* shape unchanged */
+            }
+        });
+
+        if (!compiled) errs.push('No Compile/Loss block at end');
+
+        return { ok: errs.length === 0, errors: errs, finalShape: shape };
+    }
+
     
+
+
     function addTrashIconToBlock(block) {
         // Create a new div element that will be our trash icon
         const trashIcon = document.createElement('div');
@@ -211,10 +444,6 @@
         const IMAGE_WIDTH = 28;
         const IMAGE_HEIGHT = 28;
         const IMAGE_CHANNELS = 1;
-
-        document.getElementById("target-area");
-        // Get the target area element
-        const targetArea = document.getElementById("target-area");
 
             // Get all child elements of the target area
             const children = targetArea.children;
