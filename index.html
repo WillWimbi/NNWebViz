@@ -56,56 +56,49 @@
         background-color: #f0f0f0;
         }
     
-        .drop-zone {
-            position: relative;
-            width: 100%;
-            height:3px;
-            
-            background-color: #00aeff;
-            text-align: center;
-            margin: 5px 0;
-            border-radius: 5px;
-        }
-
-        .drop-zone-active {
-            background-color: #66ccff; /* A lighter, mild highlight color */
-            box-shadow: 0 0 5px rgba(0, 174, 255, 0.5);
-            transition: all 0.2s ease;
-        }
-
         .trash-icon {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            z-index: 10;
-        }
-
-        /* Container for target area and header */
-        .target-container {
-            display: flex;
-            flex-direction: column;
-            border: 2px solid black;
-            padding: 0;
-            min-height: 300px;
-            width: 200px;
-        }
-        
-        .target-container h4 {
-            margin: 0;
-            padding: 10px;
-            background-color: #e0e0e0;
-            text-align: center;
-            border-bottom: 1px solid #ccc;
-        }
-        
-        .target-area {
-            background-color: #f0f0f0;
-            min-height: 260px;
-            padding: 20px;
+            
         }
     
+        .visualization-container {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f8f8f8;
+        }
+        
+        .performer {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            text-align: center;
+            background-color: white;
+        }
+        
+        .source-image {
+            margin-bottom: 10px;
+            padding: 5px;
+            border: 1px solid #007bff;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        
+        .similar-images-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        
+        .similar-image {
+            padding: 3px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+
+
         </style>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -117,7 +110,7 @@
   <!-- Import tfjs-vis -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@1.0.2/dist/tfjs-vis.umd.min.js"></script>
 
-  <!-- Import the data file -->
+  <!-- Import the data file (CHANGE!!!!)-->
   <script src="data.js" type="module"></script>
 
   <!-- Import the main script file -->
@@ -141,35 +134,52 @@
         <input type="text" value="10">
         
     </div> -->
-    <div class="container" style="display: flex; gap: 20px;">
+    <div class="container" style="display: flex; gap: 20px;"> <!--irrelevant extras form pedagogy-->
         <div class="source-area">
-            <!-- Convolution -->
-            <div class="block" id="conv2d" draggable="true" data-type="conv2d">
+
+            <!-- Dense (Linear) Layer -->
+            <div class="block" draggable="true" id="dense">
+                <h4>Dense (Linear) Layer</h4>
+                Input Channels: <input type="text" placeholder="inputChannels"><br>
+                Output Channels: <input type="text" placeholder="outputChannels">
+            </div>
+        
+            <!-- Conv2D Layer -->
+            <div class="block" draggable="true" id="conv2d">
                 <h4>Conv2D Layer</h4>
-                Kernel&nbsp;<input data-param="kernelSize"  placeholder="3">
-                Filters&nbsp;<input data-param="filters"    placeholder="32">
-                Strides&nbsp;<input data-param="strides"    placeholder="1">
+                Kernel Size: <input type="text" placeholder="kernelSize"><br>
+                Filters: <input type="text" placeholder="filters"><br>
+                Strides: <input type="text" placeholder="strides">
             </div>
-            
-            <!-- Max-Pooling -->
-            <div class="block" id="maxpool" draggable="true" data-type="maxpool">
-                <h4>MaxPool2D</h4>
-                Pool&nbsp;<input data-param="poolSize" placeholder="2">
+        
+            <!-- MaxPooling2D Layer -->
+            <div class="block" draggable="true" id="maxpool">
+                <h4>MaxPooling Layer</h4>
+                Pool Size: <input type="text" placeholder="poolSize"><br>
+                Strides: <input type="text" placeholder="strides">
             </div>
-            
-            <!-- Activation: Sigmoid -->
-            <div class="block" id="sigmoid" draggable="true" data-type="sigmoid">
-                <h4>Sigmoid</h4>
+        
+            <!-- ReLU Activation -->
+            <div class="block" draggable="true" id="relu">
+                <h4>ReLU Activation</h4>
             </div>
-            
-            <!-- Activation: Tanh -->
-            <div class="block" id="tanh" draggable="true" data-type="tanh">
-                <h4>Tanh</h4>
+        
+            <!-- Sigmoid Activation -->
+            <div class="block" draggable="true" id="sigmoid">
+                <h4>Sigmoid Activation</h4>
             </div>
-            
+        
+            <!-- Tanh Activation -->
+            <div class="block" draggable="true" id="tanh">
+                <h4>Tanh Activation</h4>
+            </div>
+        </div>
+        
+        <div class="target-area" id="target">
+            Drop boxes here
             <!-- Loss / Compile block -->
             <div class="block" id="loss" draggable="true" data-type="loss">
-                <h4>Compile / Loss</h4>
+                <h4>Loss</h4>
                 Optimizer&nbsp;
                 <select data-param="optimizer">
                     <option value="sgd" selected>SGD</option>
@@ -179,29 +189,35 @@
                 Loss&nbsp;
                 <select data-param="loss">
                     <option value="categoricalCrossentropy">Categorical CE</option>
-                    <option value="binaryCrossentropy">Binary CE</option>
-                    <option value="meanSquaredError">MSE</option>
+                    
                 </select>
-            </div>
-
-            <!-- //Conv2D layer
-            //Sigmoid function
-            //Tanh activation function
-            //Maxpool function
-            
-
-            //Loss functions:
-            //Cross Entropy Loss
-            //Mean Squared Error Loss
-            //Absolute Error Loss -->
-            <div class="block" draggable="true" id="block3">Box 3</div>
-        </div>
-        <div class="target-container">
-            <h4 id="default-text">Drop boxes here</h4>
-            <div class="target-area" id="target">
             </div>
         </div>
     </div>
+    <button id="startTrainingButton">Start Training</button>
+    <div class="container" id="modelLayerViz">
+        <div id="layers"></div>
+        <div class="container" id="imgPerformance">
+            <div class="container" id = "bestPerformers">
+                <!--best performers-->
+            </div>
+            <div class="container" id = "worstPerformers">
+                <!--worst performers-->
+            </div>
+        </div>
+    </div>
+
+    <!-- Loss and Accuracy Graph Container -->
+    <div class="visualization-container">
+        <h3>Training Performance</h3>
+        <div id="lossAccuracyGraph" style="width: 600px; height: 300px;"></div>
+    </div>
+
+    <!-- Similar Images Container -->
+    <div class="visualization-container">
+        <div id="similarImages"></div>
+    </div>
+
     <!-- <div style="width: 50px; height: 50px; background-color: red;">
         <div style="position:relative; width:20px;height:20px; top:10px;left:10px; background-color: blue;">
         
@@ -212,300 +228,4 @@
 
 </body>
 </html>
-<script>
-    const blocks = document.querySelectorAll('.block');
-    const targetArea = document.getElementById('target');
-    let cloneCount = 0;
-    // let r = document.getElementById("source-area");
-    // r.addEventListener("dragStart",function(event){
-    //     event.preventDefault();
-    // });
-
-
-    function createDropZonesInTarget() {
-        // Get existing drop zones to remove them before creating new ones
-        const existingDropZones = targetArea.querySelectorAll('.drop-zone');
-        //existingDropZones.forEach(zone => zone.remove());
-        // Create drop zones between blocks
-        const blocks = targetArea.querySelectorAll('.block');
-        // Add drop zones after each block
-        blocks.forEach(block => {
-            const dropZone = document.createElement('div');
-            dropZone.classList.add('drop-zone');
-            targetArea.insertBefore(dropZone, block);
-        });
-
-        // Add event listeners to drop zones
-        const dropZones = targetArea.querySelectorAll('.drop-zone');
-        dropZones.forEach(zone => {
-            zone.addEventListener('dragover', e => {
-                e.preventDefault();
-                e.stopPropagation();
-                zone.classList.add('drop-zone-active');
-            });
-            
-            zone.addEventListener('dragleave', () => {
-                zone.classList.remove('drop-zone-active');
-            });
-            
-            zone.addEventListener('drop', e => {
-                
-                e.preventDefault();
-                e.stopPropagation();
-                zone.classList.remove('drop-zone-active');
-                const boxId = e.dataTransfer.getData('text/plain');
-                const origBox = document.getElementById(boxId);
-                const newBox = origBox.cloneNode(true);
-                newBox.id = `${boxId}-clone-${cloneCount++}`;
-                targetArea.insertBefore(newBox, zone);
-                addTrashIconToBlock(newBox);
-                const existingDropZones = targetArea.querySelectorAll('.drop-zone');
-                existingDropZones.forEach(zone => zone.remove());
-            });
-        });
-    }
-
-
-
-    //main runlogic
-
-      // 1. Make blocks draggable
-    blocks.forEach(function(box) {
-        box.addEventListener('dragstart', function(event) {
-        // Store which box is being dragged
-        event.dataTransfer.setData('text/plain', box.id);
-        if (targetArea.children.length !== 0 ) {
-            createDropZonesInTarget();
-
-        }
-        //hmmmm....
-        });
-    });
-
-    //2. set def. behavior
-    document.getElementById("target").addEventListener("dragover", function(event) {
-        event.preventDefault();
-    });
-
-
-    document.getElementById("target").addEventListener('drop', function(event){
-        event.preventDefault();
-        let boxId = event.dataTransfer.getData('text/plain');
-        let origBox = document.getElementById(boxId);
-        const newBox = origBox.cloneNode(true);
-        newBox.id = `${boxId}-clone-${cloneCount++}`;
-        document.getElementById("target").appendChild(newBox);
-        const defaultText = document.getElementById("default-text");
-        if (defaultText) {
-            defaultText.remove();
-        }
-        // Add trash icon to the newly dropped block
-        addTrashIconToBlock(newBox);
-        const existingDropZones = targetArea.querySelectorAll('.drop-zone');
-        existingDropZones.forEach(zone => zone.remove());
-    });
-
-
-    //check model
-
-
-    // let childrenList = targetArea.children;
-    // childrenList.forEach(function(child){
-    //     addTrashIconToBlock(child);
-    // });
-    /* ——— minimalist compatibility checker ——— */
-    function shapeCheck() {
-        //something here, will fill out later but must check shape compatibility, and give err
-        //messages and little red highlight bars on the field input entries of the target area blocks, so in 2 funcs for now.
-        //shapeCheck will be called whenever a block is dropped, and for now will just say 'incomptible entries!'
-        //and light up red around all of them. No need for special logic yet.
-
-        const IMAGE_W  = 28, IMAGE_H = 28, IMAGE_C = 1;   // your dataset spec
-        let   shape    = [IMAGE_H, IMAGE_W, IMAGE_C];     // H,W,C  or  ["flat", len]
-        let   compiled = false;
-        const errs     = [];
-
-        const flatLen = s => s[0] === "flat" ? s[1] : s[0]*s[1]*s[2];
-
-        [...targetArea.querySelectorAll('.block')].forEach((b, idx) => {
-            const where = `@ block ${idx+1} (${b.dataset.type})`;
-
-            switch (b.dataset.type) {
-
-            /* 1 ——————————— Conv2D ——————————— */
-            case 'conv2d': {
-                if (shape[0] === "flat") {
-                errs.push(`Conv2D cannot follow a flat vector ${where}`);
-                break;
-                }
-                const k = +b.querySelector('[data-param="kernelSize"]').value;
-                const s = +b.querySelector('[data-param="strides"]').value;
-                const f = +b.querySelector('[data-param="filters"]').value;
-                if (!k||!s||!f) { errs.push(`Conv2D missing params ${where}`); break; }
-
-                const [h,w] = shape;
-                const outH = Math.floor((h - k) / s) + 1;
-                const outW = Math.floor((w - k) / s) + 1;
-                if (outH <= 0 || outW <= 0)
-                errs.push(`Conv2D kernel/stride too large ${where}`);
-                shape = [outH, outW, f];
-                break;
-            }
-
-            /* 2 ——————————— MaxPool ——————————— */
-            case 'maxpool': {
-                if (shape[0] === "flat") {
-                errs.push(`MaxPool cannot follow a flat vector ${where}`);
-                break;
-                }
-                const p = +b.querySelector('[data-param="poolSize"]').value;
-                if (!p) { errs.push(`MaxPool missing poolSize ${where}`); break; }
-
-                const [h,w,c] = shape;
-                const outH = Math.floor(h / p);
-                const outW = Math.floor(w / p);
-                if (!outH || !outW)
-                errs.push(`MaxPool poolSize too large ${where}`);
-                shape = [outH, outW, c];
-                break;
-            }
-
-            /* 3 ——————————— Dense ——————————— */
-            case 'dense': {
-                const inp = +b.querySelector('[data-param="inputChannels"]').value;
-                const out = +b.querySelector('[data-param="outputChannels"]').value;
-                if (!inp||!out) { errs.push(`Dense missing in/out ${where}`); break; }
-
-                const need = flatLen(shape);
-                if (inp !== need)
-                errs.push(`Dense expected input ${inp} but got ${need} ${where}`);
-                shape = ["flat", out];
-                break;
-            }
-
-            /* 4 ——————————— Compile / Loss ——————————— */
-            case 'loss': {
-                if (compiled) errs.push(`Multiple compile blocks – keep one ${where}`);
-                compiled = true;
-                // no shape change
-                break;
-            }
-
-            /* 5 ——————————— Stateless layers (relu, sigmoid, tanh) ——————————— */
-            default:
-                /* shape unchanged */
-            }
-        });
-
-        if (!compiled) errs.push('No Compile/Loss block at end');
-
-        return { ok: errs.length === 0, errors: errs, finalShape: shape };
-    }
-
-    
-
-
-    function addTrashIconToBlock(block) {
-        // Create a new div element that will be our trash icon
-        const trashIcon = document.createElement('div');
-        // This is not creating a new CSS class definition, but rather
-        // assigning the element to an existing CSS class named 'trash-icon'
-        // The actual CSS styles for this class would be defined elsewhere in a stylesheet
-        // This line simply tags the element so it can be styled according to that class definition
-        // If the 'trash-icon' class doesn't exist in any stylesheet, the element will still
-        // have the class name but no special styling would be applied
-        trashIcon.classList.add('trash-icon');
-
-        // Set its content
-        trashIcon.innerHTML = '🗑️';
-        
-        // Add click event listener to remove the block when trash icon is clicked
-        trashIcon.addEventListener('click', function(event) {
-            // Prevent the event from bubbling up to parent elements
-            event.stopPropagation();
-            
-            // Remove the block containing this trash icon
-            block.remove();
-        });
-        
-        // Insert the trash icon as the first child of the block
-        block.insertBefore(trashIcon, block.firstChild);
-
-    }
-
-    function buildModel() {
-        // Create a new TensorFlow.js sequential model
-        const model = tf.sequential();
-        
-        // Log to console that we're building the model
-        console.log('Building TensorFlow model...');
-        
-        // Define image dimensions
-        const IMAGE_WIDTH = 28;
-        const IMAGE_HEIGHT = 28;
-        const IMAGE_CHANNELS = 1;
-
-            // Get all child elements of the target area
-            const children = targetArea.children;
-            const childrenLength = children.length;
-            for (let i = 0; i < children.length; i++) {
-                const child = children[i];
-                if(i===0 && child.id==="conv2d"){
-                    model.add(tf.layers.conv2d({
-                        inputShape: [IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS],
-                        kernelSize: child.kernelSize,
-                        filters: child.filters,
-                        strides: child.strides,
-                        kernelInitializer: 'varianceScaling'
-                    }));
-                }
-                else if(child.id==="conv2d"){
-                    model.add(tf.layers.conv2d({
-                        kernelSize: child.kernelSize,
-                        filters: child.filters,
-                        strides: child.strides,
-                        kernelInitializer: 'varianceScaling'
-                    }));
-                }
-                else if(child.id==="dense"){
-                    model.add(tf.layers.dense({
-                        inputShape: child.inputChannels,
-                        units: child.outputChannels,
-                    }));
-                }
-                else if(child.id==="relu"){
-                    model.add(tf.layers.relu());
-                }
-                else if(child.id==="sigmoid"){
-                    model.add(tf.layers.sigmoid());
-                }
-                else if(child.id==="tanh"){
-                    model.add(tf.layers.tanh());
-                }
-                else if(child.id==="maxpool"){
-                    model.add(tf.layers.maxPooling2d({poolSize: child.poolSize, strides: child.poolSize}));
-                }
-                else if(child.id==="loss"){
-                    model.compile({
-                        optimizer: child.optimizer === "SGD" ? tf.train.sgd() : tf.train.adam(),
-                        loss: child.loss,
-                        metrics: ['categoricalAccuracy'] // 'accuracy' measures the percentage of correct predictions
-                        // Other possible metrics include:
-                        // - 'binaryCrossentropy': For binary classification tasks
-                        // - 'categoricalAccuracy': Similar to accuracy for multi-class problems
-                        // - 'precision'/'recall': For imbalanced datasets
-                        // - 'meanSquaredError'/'meanAbsoluteError': For regression tasks
-                        // You can also use custom metrics functions
-                    });
-                }
-            }
-    }
-
-
-
-</script>  
-</head>
-
-<body>
-</body>
-</html>
+<script src = "userTrainingExperience.js">

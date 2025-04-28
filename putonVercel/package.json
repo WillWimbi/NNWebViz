@@ -1,0 +1,8 @@
+{
+  "name": "nn-webviz",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "mongodb": "^6.4.0"
+  }
+}
