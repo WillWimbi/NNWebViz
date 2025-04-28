@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <style>
+        #console-output {
+                width: 90%;
+                height: 650px;
+                border: 1px solid #ccc;
+                margin: 10px auto;
+                padding: 10px;
+                overflow-y: auto;
+                font-family: monospace;
+                background-color: #f4f4f4;
+                white-space: pre-wrap;}
+    
+        .container {
+        display: flex;
+        gap: 20px;
+        }
+    
+        .source-area, .target-area {
+        border: 2px solid black;
+        padding: 20px;
+        min-height: 300px;
+        width: 200px;
+        }
+    
+        /* .box {
+        background-color: lightblue;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        cursor: grab;
+        } */
+    
+        .block {
+        background-color: lightblue;
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        cursor: grab;
+        position: relative;
+        }
+    
+        .trash-icon {
+        position: absolute;
+        top: 0px;
+        right: 0px;
+        cursor: pointer;
+        font-size: 16px;
+        z-index: 10;
+        }
+    
+        .target-area {
+        background-color: #f0f0f0;
+        }
+    
+        .trash-icon {
+            
+        }
+    
+        </style>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <div id="loading-indicator" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);">Loading MNIST dataset...</div>
+
+  <!-- Import TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.0.0/dist/tf.min.js"></script>
+  <!-- Import tfjs-vis -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@1.0.2/dist/tfjs-vis.umd.min.js"></script>
+
+  <!-- Import the data file -->
+  <script src="data.js" type="module"></script>
+
+  <!-- Import the main script file -->
+  <script src="script.js" type="module"></script>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+
+
+
+    
+            
+        
+<body>
+    <canvas id="canvas" width="300" height="300"></canvas>
+    <div draggable="true" class="layer-component" data-layer-type="dense">Dense Layer</div>
+    <div id="box">GIMME DAT BACON</div>
+    <input type="file" id="fileInput">
+    <!-- <div id="console-output"></div> -->
+    
+    <!-- <div class="block" draggable="true" id="blocky1">mOVE 120 STEPS
+        <h1>HI!!!</h1>
+        <input type="text" value="10">
+        
+    </div> -->
+    <div class="container" style="display: flex; gap: 20px;"> <!--irrelevant extras form pedagogy-->
+        <div class="source-area">
+            <div class="block" draggable="true" id="block1">
+                <h4 id="relu">ReLU Activation Function</h4>
+                
+
+                
+            </div>
+            <div class="block" draggable="true" id="block2">
+                <!-- We'll put in an ability to have a little trash can icon here to remove layers!! <div class="flex"><> -->
+                <h4 id="dense">Linear Layer</h4>
+                    Input Channels:
+                <input type="text" placeholder="inputChannels" >
+                Output Channels:
+                <input type="text" placeholder="outputChannels" >
+
+            </div>
+            <!-- //Conv2D layer
+            //Sigmoid function
+            //Tanh activation function
+            //Maxpool function
+            
+
+            //Loss functions:
+            //Cross Entropy Loss
+            //Mean Squared Error Loss
+            //Absolute Error Loss -->
+            <div class="block" draggable="true" id="block3">Box 3</div>
+        </div>
+        <div class="target-area" id="target">
+            Drop boxes here
+        </div>
+    </div>
+    <!-- <div style="width: 50px; height: 50px; background-color: red;">
+        <div style="position:relative; width:20px;height:20px; top:10px;left:10px; background-color: blue;">
+        
+
+        </div>
+
+    </div> -->
+
+</body>
+</html>
+<script>
+    const blocks = document.querySelectorAll('.block');
+    
+
+    // let r = document.getElementById("source-area");
+    // r.addEventListener("dragStart",function(event){
+    //     event.preventDefault();
+    // });
+
+      // 1. Make blocks draggable
+    blocks.forEach(function(box) {
+        box.addEventListener('dragstart', function(event) {
+        // Store which box is being dragged
+        event.dataTransfer.setData('text/plain', box.id);
+        });
+    });
+
+    //2. set def. behavior
+    document.getElementById("target").addEventListener("dragover", function(event) {
+        event.preventDefault();
+    });
+
+
+    document.getElementById("target").addEventListener('drop', function(event){
+        let boxId = event.dataTransfer.getData('text/plain');
+        let origBox = document.getElementById(boxId);
+        const newBox = origBox.cloneNode(true);
+        newBox.id = boxId + '-clone';
+        document.getElementById("target").appendChild(newBox);
+        // Add trash icon to the newly dropped block
+        addTrashIconToBlock(newBox);
+    });
+
+    
+    function addTrashIconToBlock(block) {
+        // Create a new div element that will be our trash icon
+        const trashIcon = document.createElement('div');
+        // This is not creating a new CSS class definition, but rather
+        // assigning the element to an existing CSS class named 'trash-icon'
+        // The actual CSS styles for this class would be defined elsewhere in a stylesheet
+        // This line simply tags the element so it can be styled according to that class definition
+        // If the 'trash-icon' class doesn't exist in any stylesheet, the element will still
+        // have the class name but no special styling would be applied
+        trashIcon.classList.add('trash-icon');
+
+        // Set its content
+        trashIcon.innerHTML = '🗑️';
+        
+        // Add click event listener to remove the block when trash icon is clicked
+        trashIcon.addEventListener('click', function(event) {
+            // Prevent the event from bubbling up to parent elements
+            event.stopPropagation();
+            
+            // Remove the block containing this trash icon
+            block.remove();
+        });
+        
+        // Insert the trash icon as the first child of the block
+        block.insertBefore(trashIcon, block.firstChild);
+
+    }
+
+    function buildModel() {
+        // Create a new TensorFlow.js sequential model
+        const model = tf.sequential();
+        
+        // Log to console that we're building the model
+        console.log('Building TensorFlow model...');
+        
+        // Define image dimensions
+        const IMAGE_WIDTH = 28;
+        const IMAGE_HEIGHT = 28;
+        const IMAGE_CHANNELS = 1;
+
+        document.getElementById("target-area");
+        // Get the target area element
+        const targetArea = document.getElementById("target-area");
+
+            // Get all child elements of the target area
+            const children = targetArea.children;
+            const childrenLength = children.length;
+            for (let i = 0; i < children.length; i++) {
+                const child = children[i];
+                if(i===0 && child.id==="conv2d"){
+                    model.add(tf.layers.conv2d({
+                        inputShape: [IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS],
+                        kernelSize: child.kernelSize,
+                        filters: child.filters,
+                        strides: child.strides,
+                        kernelInitializer: 'varianceScaling'
+                    }));
+                }
+                else if(child.id==="conv2d"){
+                    model.add(tf.layers.conv2d({
+                        kernelSize: child.kernelSize,
+                        filters: child.filters,
+                        strides: child.strides,
+                        kernelInitializer: 'varianceScaling'
+                    }));
+                }
+                else if(child.id==="dense"){
+                    model.add(tf.layers.dense({
+                        inputShape: child.inputChannels,
+                        units: child.outputChannels,
+                    }));
+                }
+                else if(child.id==="relu"){
+                    model.add(tf.layers.relu());
+                }
+                else if(child.id==="sigmoid"){
+                    model.add(tf.layers.sigmoid());
+                }
+                else if(child.id==="tanh"){
+                    model.add(tf.layers.tanh());
+                }
+                else if(child.id==="maxpool"){
+                    model.add(tf.layers.maxPooling2d({poolSize: child.poolSize, strides: child.poolSize}));
+                }
+                else if(child.id==="loss"){
+                    model.compile({
+                        optimizer: child.optimizer === "SGD" ? tf.train.sgd() : tf.train.adam(),
+                        loss: child.loss,
+                        metrics: ['categoricalAccuracy'] // 'accuracy' measures the percentage of correct predictions
+                        // Other possible metrics include:
+                        // - 'binaryCrossentropy': For binary classification tasks
+                        // - 'categoricalAccuracy': Similar to accuracy for multi-class problems
+                        // - 'precision'/'recall': For imbalanced datasets
+                        // - 'meanSquaredError'/'meanAbsoluteError': For regression tasks
+                        // You can also use custom metrics functions
+                    });
+                }
+            }
+    }
+
+
+
+</script>  
+</head>
+
+<body>
+</body>
+</html>

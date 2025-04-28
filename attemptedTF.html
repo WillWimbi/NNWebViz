@@ -9,34 +9,60 @@
   <h1>Train a Neural Network in Browser</h1>
   <canvas id="visualization"></canvas> <!-- Optional: For visualizing training -->
   <script>
+    function loadMnistData(folder="C:\Users\willw\Downloads\MNIST Dataset JPG format\MNIST - JPG - training"){
+        for(fol in folders){
+            fol[0]
+        }
+
+    }
+
+
+
     // Your TensorFlow.js code here
     async function trainModel() {
-      // Define a simple sequential model
-      const model = tf.sequential();
-      model.add(tf.layers.dense({ units: 10, inputShape: [3], activation: 'relu' }));
-      model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
+            // Create a simple model.
+        const model = tf.sequential();
+        model.add(tf.layers.dense({units: 1, inputShape: [1]}));
 
-      // Compile the model
-      model.compile({ optimizer: 'sgd', loss: 'meanSquaredError' });
+        let epochs = 300;
 
-      // Dummy data for training (replace with user-generated data)
-      const xs = tf.tensor2d([[1, 2, 3], [4, 5, 6], [7, 8, 9]], [3, 3]);
-      const ys = tf.tensor2d([[0], [1], [0]], [3, 1]);
-
-      // Train the model in the browser
-      await model.fit(xs, ys, {
-        epochs: 100,
-        callbacks: {
-          onEpochEnd: (epoch, logs) => {
-            console.log(`Epoch ${epoch}: Loss = ${logs.loss}`);
-          }
+        function *dataGenerator(){
+            while (true){        
+            const x = tf.randomUniform([32, 1], -5, 5); // Batch of 32
+            const y = x.mul(2).sub(1);
+            yield { xs: x, ys: y };
+            }
         }
-      });
 
-      // Example prediction
-      const prediction = model.predict(tf.tensor2d([[1, 2, 3]], [1, 3]));
-      console.log(prediction.dataSync());
-    }
+        const dataset = tf.data.generator(dataGenerator);
+        // Prepare the model for training: Specify the loss and the optimizer.
+        model.compile({loss: 'meanSquaredError', optimizer: 'sgd'});
+        await model.fitDataset(dataset,{
+            epochs: epochs,
+            batchesPerEpoch: 20,
+            callbacks: {
+                onEpochEnd:(epoch,logs) => {
+                    console.log(`Epochs:${epoch}: Loss: ${logs.loss}`);
+                }
+
+            }
+
+        });
+
+
+        
+        // const f = x => x.square();              // define f(x) = x^2
+        // const df = tf.grad(f);                  // df is now a function that gives gradient of f
+        // const x = tf.tensor1d([1, 2, 3]);
+        // df(x).print();  // Should print [2, 4, 6]
+        // Generate some synthetic data for training. (y = 2x - 1)
+        // const xs = tf.tensor2d([-9.1321,5.795,105,56,13], [5, 1]);
+        // const ys = tf.tensor2d([-3, -1, 1, 3, 5, 7], [5, 1]);
+            // Example prediction
+            // Need to provide shape as second parameter for flat arrays
+            const prediction = model.predict(tf.tensor2d([-9.1321, 5.795, 105, 56, 13], [5, 1]));
+            console.log(prediction.dataSync());
+            }
 
     // Run training when the page loads
     window.onload = trainModel;

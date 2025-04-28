@@ -35,6 +35,10 @@
             // Format arguments to string
             const output = Array.from(arguments).map(arg => {
                 if (typeof arg === 'object') {
+                    // JSON.stringify(value, replacer, space) converts objects to JSON strings
+                    // First parameter (arg): The object to convert to a JSON string
+                    // Second parameter (null): A replacer function or array to transform values (null = no transformation)
+                    // Third parameter (2): Number of spaces for indentation to make the output more readable
                     return JSON.stringify(arg, null, 2);
                 }
                 return String(arg);
