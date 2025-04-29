@@ -97,6 +97,7 @@
             border: 1px solid #ddd;
             border-radius: 3px;
         }
+    
 
 
         </style>
@@ -110,11 +111,7 @@
   <!-- Import tfjs-vis -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@1.0.2/dist/tfjs-vis.umd.min.js"></script>
 
-  <!-- Import the data file (CHANGE!!!!)-->
-  <script src="data.js" type="module"></script>
-
-  <!-- Import the main script file -->
-  <script src="script.js" type="module"></script>
+        
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
 
 
@@ -127,6 +124,10 @@
     <div draggable="true" class="layer-component" data-layer-type="dense">Dense Layer</div>
     <div id="box">GIMME DAT BACON</div>
     <input type="file" id="fileInput">
+    <div id="perfVizArea" class="container">
+        <div id="lossGraph"></div>
+        <div id="accGraph"></div>
+    </div>
     <!-- <div id="console-output"></div> -->
     
     <!-- <div class="block" draggable="true" id="blocky1">mOVE 120 STEPS
@@ -176,25 +177,78 @@
         </div>
         
         <div class="target-area" id="target">
-            Drop boxes here
-            <!-- Loss / Compile block -->
+            <!-- Default model -->
+            
+            <!-- First Conv2D Layer -->
+            <div class="block" id="conv2d-clone" draggable="true" data-type="conv2d">
+                <div class="trash-icon">🗑️</div>
+                <h4>Conv2D Layer</h4>
+                Kernel Size: <input type="text" placeholder="kernelSize" value="5"><br>
+                Filters: <input type="text" placeholder="filters" value="8"><br>
+                Strides: <input type="text" placeholder="strides" value="1">
+            </div>
+            
+            <!-- ReLU Activation -->
+            <div class="block" id="relu-clone" draggable="true" data-type="relu">
+                <div class="trash-icon">🗑️</div>
+                <h4>ReLU Activation</h4>
+            </div>
+            
+            <!-- First MaxPooling Layer -->
+            <div class="block" id="maxpool-clone" draggable="true" data-type="maxpool">
+                <div class="trash-icon">🗑️</div>
+                <h4>MaxPooling Layer</h4>
+                Pool Size: <input type="text" placeholder="poolSize" value="2"><br>
+                Strides: <input type="text" placeholder="strides" value="2">
+            </div>
+            
+            <!-- Second Conv2D Layer -->
+            <div class="block" id="conv2d-clone2" draggable="true" data-type="conv2d">
+                <div class="trash-icon">🗑️</div>
+                <h4>Conv2D Layer</h4>
+                Kernel Size: <input type="text" placeholder="kernelSize" value="5"><br>
+                Filters: <input type="text" placeholder="filters" value="16"><br>
+                Strides: <input type="text" placeholder="strides" value="1">
+            </div>
+            
+            <!-- Second ReLU Activation -->
+            <div class="block" id="relu-clone2" draggable="true" data-type="relu">
+                <div class="trash-icon">🗑️</div>
+                <h4>ReLU Activation</h4>
+            </div>
+            
+            <!-- Second MaxPooling Layer -->
+            <div class="block" id="maxpool-clone2" draggable="true" data-type="maxpool">
+                <div class="trash-icon">🗑️</div>
+                <h4>MaxPooling Layer</h4>
+                Pool Size: <input type="text" placeholder="poolSize" value="2"><br>
+                Strides: <input type="text" placeholder="strides" value="2">
+            </div>
+            
+            <!-- Dense Layer -->
+            <div class="block" id="dense-clone" draggable="true" data-type="dense">
+                <div class="trash-icon">🗑️</div>
+                <h4>Dense (Linear) Layer</h4>
+                Input Channels: <input type="text" placeholder="inputChannels"><br>
+                Output Channels: <input type="text" placeholder="outputChannels" value="10">
+            </div>
+            
+            <!-- Loss block -->
             <div class="block" id="loss" draggable="true" data-type="loss">
                 <h4>Loss</h4>
                 Optimizer&nbsp;
                 <select data-param="optimizer">
-                    <option value="sgd" selected>SGD</option>
-                    <option value="adam">Adam</option>
-                    <option value="rmsprop">RMSProp</option>
+                    <option value="adam" selected>Adam</option>
+                    <option value="sgd">SGD</option>
                 </select><br>
                 Loss&nbsp;
                 <select data-param="loss">
-                    <option value="categoricalCrossentropy">Categorical CE</option>
-                    
+                    <option value="softmaxCrossEntropy">softmaxCrossEntropy</option>
                 </select>
             </div>
         </div>
     </div>
-    <button id="startTrainingButton">Start Training</button>
+    <button id="startTrainingButton" class="action-button">Start Training</button>
     <div class="container" id="modelLayerViz">
         <div id="layers"></div>
         <div class="container" id="imgPerformance">
@@ -213,11 +267,6 @@
         <div id="lossAccuracyGraph" style="width: 600px; height: 300px;"></div>
     </div>
 
-    <!-- Similar Images Container -->
-    <div class="visualization-container">
-        <div id="similarImages"></div>
-    </div>
-
     <!-- <div style="width: 50px; height: 50px; background-color: red;">
         <div style="position:relative; width:20px;height:20px; top:10px;left:10px; background-color: blue;">
         
@@ -226,6 +275,6 @@
 
     </div> -->
 
+    <script src="./userTrainingExperience.js"></script>
 </body>
 </html>
-<script src = "userTrainingExperience.js">
