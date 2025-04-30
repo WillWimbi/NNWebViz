@@ -1,5 +1,5 @@
 /* ========================================================================== *
-   neuralNetMnist.js  —  spec‑compliant autodiff & NN micro‑framework
+   neuralNetMnist.js  —  NN micro‑framework
    ========================================================================== */
 
 /* ----------------------- helpers ---------------------------------------- */
@@ -715,8 +715,6 @@ class Tensor {
   //^^^testing case imagine we have tensor 3,7,5,4. We're here using only 3,7 since prior matmul logic
   //took care of 5,4. We're building a nested array with the shape 3,7. Therefore comes into 
   //Buildnested. we do loop 3 times and call buildNested on rest each time, where rest = 7.
-  //What does calling buildNested(7) do? Is it returned as a single [7] array or a standalone value?
-  //I'm curious about potential issues here, it seems problematic potentially. FUNCTION HAS BEEN FLAGGED BY ME.
 
   // Create the output tensor structure with the correct batch and matrix dimensions
   // The last dimension is actually a placeholder for the matrix that will be computed

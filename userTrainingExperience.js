@@ -9,13 +9,48 @@ const NUM_TEST_ELEMENTS = NUM_DATASET_ELEMENTS - NUM_TRAIN_ELEMENTS;
 let EPOCH_AMOUNT = 1;
 let LR = 0.01;
 const itersTilFullTrainingSetUsed = TRAIN_DATA_SIZE / BATCH_SIZE;
-let history = {};
+let history = {
+    losses: [],
+    vallosses: [],
+    activations: {},
+    gradients: {},
+    weights: {}
+    };
 
 //run func
 document.addEventListener('DOMContentLoaded', async () => {
+    const ctx = document.getElementById('lossGraph').getContext('2d');
+
+    const lossChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+        label: 'Loss',
+        data: [],
+        borderColor: 'blue',
+        borderWidth: 2,
+        fill: false
+        }]
+    },
+    options: {
+        animation: false,
+        responsive: true,
+        scales: {
+        x: {
+            title: { display: true, text: 'Batch' }
+        },
+        y: {
+            title: { display: true, text: 'Loss' }
+        }
+        }
+    }
+    });
+    
+   
     const data = new MnistData();
     await data.load();
-    
+
     document.getElementById("startTrainingButton").addEventListener("click", async () => {
         const [modelComponents, optimizer] = buildModel(); // requires DOM to exist
         trainOnlyLayers(data,modelComponents,optimizer); // needs model + data
@@ -28,29 +63,29 @@ const MNIST_LABELS_PATH =
     'https://storage.googleapis.com/learnjs-data/model-builder/mnist_labels_uint8';
 
 class MnistData {
-    constructor() {
-        this.shuffledTrainIndex = 0;
-        this.shuffledTestIndex = 0;
-    }
+  constructor() {
+    this.shuffledTrainIndex = 0;
+    this.shuffledTestIndex = 0;
+  }
 
-    async load() {
-        const img = new Image();
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const imgRequest = new Promise((resolve, reject) => {
+  async load() {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const imgRequest = new Promise((resolve, reject) => {
             img.crossOrigin = '';
-            img.onload = () => {
-                const loadingIndicator = document.getElementById("loading-indicator");
+      img.onload = () => {
+        const loadingIndicator = document.getElementById("loading-indicator");
                 if (loadingIndicator) loadingIndicator.remove();
                 img.width = img.naturalWidth;
                 console.log("img.width: ", img.width);
                 img.height = img.naturalHeight;
-                const datasetBytesBuffer = new ArrayBuffer(NUM_DATASET_ELEMENTS * IMAGE_SIZE * 4);
-                const chunkSize = 5000;
+        const datasetBytesBuffer = new ArrayBuffer(NUM_DATASET_ELEMENTS * IMAGE_SIZE * 4);
+        const chunkSize = 5000;
                 canvas.width = img.width;
-                canvas.height = chunkSize;
+        canvas.height = chunkSize;
 
-                for (let i = 0; i < NUM_DATASET_ELEMENTS / chunkSize; i++) {
+        for (let i = 0; i < NUM_DATASET_ELEMENTS / chunkSize; i++) {
                     const datasetBytesView = new Float32Array(
                         datasetBytesBuffer,
                         i * IMAGE_SIZE * chunkSize * 4,
@@ -75,65 +110,65 @@ class MnistData {
                         { willReadFrequently: true }
                     );
 
-                    for (let j = 0; j < imageData.data.length / 4; j++) {
-                        datasetBytesView[j] = imageData.data[j * 4] / 255;
-                    }
-                }
-                this.datasetImages = new Float32Array(datasetBytesBuffer);
-                resolve();
-            };
-            img.src = MNIST_IMAGES_SPRITE_PATH;
-        });
+          for (let j = 0; j < imageData.data.length / 4; j++) {
+            datasetBytesView[j] = imageData.data[j * 4] / 255;
+          }
+        }
+        this.datasetImages = new Float32Array(datasetBytesBuffer);
+        resolve();
+      };
+      img.src = MNIST_IMAGES_SPRITE_PATH;
+    });
 
-        const labelsRequest = fetch(MNIST_LABELS_PATH);
-        const [imgResponse, labelsResponse] = await Promise.all([imgRequest, labelsRequest]);
-        this.datasetLabels = new Uint8Array(await labelsResponse.arrayBuffer());
-        this.trainIndices = tf.util.createShuffledIndices(NUM_TRAIN_ELEMENTS);
+    const labelsRequest = fetch(MNIST_LABELS_PATH);
+    const [imgResponse, labelsResponse] = await Promise.all([imgRequest, labelsRequest]);
+    this.datasetLabels = new Uint8Array(await labelsResponse.arrayBuffer());
+    this.trainIndices = tf.util.createShuffledIndices(NUM_TRAIN_ELEMENTS);
         console.log("trainIndices length via tf.util.createShuffledIndices: ", this.trainIndices.length);
         console.log("checking trainIndices via tf.util.createShuffledIndices: ", this.trainIndices);
-        this.testIndices = tf.util.createShuffledIndices(NUM_TEST_ELEMENTS);
-        this.trainImages = this.datasetImages.slice(0, IMAGE_SIZE * NUM_TRAIN_ELEMENTS);
-        this.testImages = this.datasetImages.slice(IMAGE_SIZE * NUM_TRAIN_ELEMENTS);
-        this.trainLabels = this.datasetLabels.slice(0, NUM_CLASSES * NUM_TRAIN_ELEMENTS);
-        this.testLabels = this.datasetLabels.slice(NUM_CLASSES * NUM_TRAIN_ELEMENTS);
-    }
+    this.testIndices = tf.util.createShuffledIndices(NUM_TEST_ELEMENTS);
+    this.trainImages = this.datasetImages.slice(0, IMAGE_SIZE * NUM_TRAIN_ELEMENTS);
+    this.testImages = this.datasetImages.slice(IMAGE_SIZE * NUM_TRAIN_ELEMENTS);
+    this.trainLabels = this.datasetLabels.slice(0, NUM_CLASSES * NUM_TRAIN_ELEMENTS);
+    this.testLabels = this.datasetLabels.slice(NUM_CLASSES * NUM_TRAIN_ELEMENTS);
+  }
 
-    nextTrainBatch(batchSize) {
+  nextTrainBatch(batchSize) {
         return this.nextBatch(
             batchSize,
             [this.trainImages, this.trainLabels],
             () => {
-                this.shuffledTrainIndex = (this.shuffledTrainIndex + 1) % this.trainIndices.length;
-                return this.trainIndices[this.shuffledTrainIndex];
+          this.shuffledTrainIndex = (this.shuffledTrainIndex + 1) % this.trainIndices.length;
+          return this.trainIndices[this.shuffledTrainIndex];
             }
         );
-    }
+  }
 
-    nextTestBatch(batchSize) {
+  nextTestBatch(batchSize) {
         return this.nextBatch(
             batchSize,
             [this.testImages, this.testLabels],
             () => {
-                this.shuffledTestIndex = (this.shuffledTestIndex + 1) % this.testIndices.length;
-                return this.testIndices[this.shuffledTestIndex];
+      this.shuffledTestIndex = (this.shuffledTestIndex + 1) % this.testIndices.length;
+      return this.testIndices[this.shuffledTestIndex];
             }
         );
+  }
+
+  nextBatch(batchSize, data, index) {
+    const batchImagesArray = new Float32Array(batchSize * IMAGE_SIZE);
+    const batchLabelsArray = new Uint8Array(batchSize * NUM_CLASSES);
+
+    for (let i = 0; i < batchSize; i++) {
+      const idx = index();
+      const image = data[0].slice(idx * IMAGE_SIZE, idx * IMAGE_SIZE + IMAGE_SIZE);
+      batchImagesArray.set(image, i * IMAGE_SIZE);
+      const label = data[1].slice(idx * NUM_CLASSES, idx * NUM_CLASSES + NUM_CLASSES);
+      batchLabelsArray.set(label, i * NUM_CLASSES);
     }
 
-    nextBatch(batchSize, data, index) {
-        const batchImagesArray = new Float32Array(batchSize * IMAGE_SIZE);
-        const batchLabelsArray = new Uint8Array(batchSize * NUM_CLASSES);
-
-        for (let i = 0; i < batchSize; i++) {
-            const idx = index();
-            const image = data[0].slice(idx * IMAGE_SIZE, idx * IMAGE_SIZE + IMAGE_SIZE);
-            batchImagesArray.set(image, i * IMAGE_SIZE);
-            const label = data[1].slice(idx * NUM_CLASSES, idx * NUM_CLASSES + NUM_CLASSES);
-            batchLabelsArray.set(label, i * NUM_CLASSES);
-        }
-
-        const xs = tf.tensor2d(batchImagesArray, [batchSize, IMAGE_SIZE]);
-        const labels = tf.tensor2d(batchLabelsArray, [batchSize, NUM_CLASSES]);
+    const xs = tf.tensor2d(batchImagesArray, [batchSize, IMAGE_SIZE]);
+    const labels = tf.tensor2d(batchLabelsArray, [batchSize, NUM_CLASSES]);
         return { xs, labels };
     }
 }
@@ -141,7 +176,7 @@ class MnistData {
 const blocks = document.querySelectorAll('.block');
 blocks.forEach(function(box) {
     box.addEventListener('dragstart', function(event) {
-        event.dataTransfer.setData('text/plain', box.id);
+    event.dataTransfer.setData('text/plain', box.id);
     });
 });
 
@@ -187,11 +222,11 @@ function buildModel() {
             const kernelSize = parseInt(inputs[0].value) || 3;
             const filters = parseInt(inputs[1].value) || 16;
             const strides = parseInt(inputs[2].value) || 1;
-    
+
             modelArr.push({
                 id: "conv2d",
                 layer: tf.layers.conv2d({
-                    inputShape: [IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS],
+                inputShape: [IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS],
                     kernelSize: kernelSize,
                     filters: filters,
                     strides: strides,
@@ -201,7 +236,7 @@ function buildModel() {
                     kernelSize: kernelSize,
                     filters: filters,
                     strides: strides,
-                    kernelInitializer: 'varianceScaling'
+                kernelInitializer: 'varianceScaling'
                 },
                 currentTestActivations: [],
                 currentTestGradients: [],
@@ -226,7 +261,7 @@ function buildModel() {
                     kernelSize: kernelSize,
                     filters: filters,
                     strides: strides,
-                    kernelInitializer: 'varianceScaling'
+                kernelInitializer: 'varianceScaling'
                 },
                 currentTestActivations: [],
                 currentTestGradients: [],
@@ -357,7 +392,7 @@ function buildVizLayers(modelArr){
         <div class="canvasGrid" id="actGrid1">Gradients</div>
     </div>`;
     layersViz.appendChild(inputLayerImage);
-    for(layer of modelArr){
+    for(const layer of modelArr){
         const layerBlock = document.createElement('div');
         layerBlock.innerHTML =`
         <div class="layerBlock">
@@ -386,6 +421,8 @@ function handleLayerVisualizationUpdates(activations,grads,weights){
     }
 }
 
+
+
 function snapshot(t, meta = {}) {
     return {
       ...meta,                  // layer name, idx, etc.
@@ -394,44 +431,7 @@ function snapshot(t, meta = {}) {
     };
 }
   async function trainOnlyLayers(data,modelComponents,optimizer) {
-  
-    //   let layers = [
-    
-    //     tf.layers.conv2d({
-    //       inputShape: [28, 28, 1],
-    //       kernelSize: 5,
-    //       filters: 8,
-    //       strides: 1,
-    //       activation: 'relu',
-    //       kernelInitializer: 'varianceScaling'
-    //     }),
-      
-    //     tf.layers.maxPooling2d({
-    //       poolSize: [2, 2],
-    //       strides: [2, 2]
-    //     }),
-      
-    //     tf.layers.conv2d({
-    //       kernelSize: 5,
-    //       filters: 16,
-    //       strides: 1,
-    //       activation: 'relu',
-    //       kernelInitializer: 'varianceScaling'
-    //     }),
-      
-    //     tf.layers.maxPooling2d({
-    //       poolSize: [2, 2],
-    //       strides: [2, 2]
-    //     }),
-      
-    //     tf.layers.flatten(),
-      
-    //     tf.layers.dense({
-    //       units: 10,
-    //       kernelInitializer: 'varianceScaling'
-    //     })
-      
-    //   ];
+
       let modelArr = modelComponents;
       //logic for selectig model from user input lego blocks.
       
@@ -473,7 +473,7 @@ function snapshot(t, meta = {}) {
       const itersTilFullTrainingSetUsed = Math.floor(TRAIN_DATA_SIZE / BATCH_SIZE);
     
       let iter = 0;
-      let history = {};
+      
       const activations = [];
       for (let epoch = 0; epoch < EPOCH_AMOUNT; ++epoch) {
     
@@ -486,7 +486,6 @@ function snapshot(t, meta = {}) {
           const xsTestBatch = testBatch.xs.reshape([25, 28, 28, 1]);
           const ysTestBatch = testBatch.labels;
   
-          const lossPerItem = new Float32Array(BATCH_SIZE);
           
           const trainableVars = [];
             for (const layer of layers) {
@@ -521,7 +520,7 @@ function snapshot(t, meta = {}) {
 
               }//end of const l for loop
               const loss = lossFn(ysBatch, act);
-              return loss;
+                           return loss;
             }, trainableVars);
   
   
@@ -531,25 +530,26 @@ function snapshot(t, meta = {}) {
   
             
         if(outer===0){console.log("first iteration:");}
-        lossPerItem[outer] = value.dataSync();
-        console.log(`Epoch ${epoch} Iter ${iter} loss:`, lossPerItem[outer]);
-  
+        let loss = value.dataSync()
+        history.losses.push(loss);
+        console.log(`Epoch ${epoch} Iter ${iter} loss:`, loss);
   
           });
           console.log("n\n\n\n\n\n\n here is the test data: \n\n\n\n\n\n\n\n")
-          const imgs  = xsTestBatch.reshape([25, 28, 28, 1]);
-          
+          const imgs  = xsTestBatch.reshape([50, 28, 28, 1]);
+          let temporaryLossArray = [];
           //lets do a single forward pass on a single tensor
-          for(let i=0;i<25;i++){
+          for(let i=0;i<50;i++){
             
             const logits = (() => {
                 let out = imgs.slice([i, 0, 0, 0], [1, 28, 28, 1]);
-                if(i===0){
+                
                   const {value,grads} = tf.variableGrads(() => {
                   for (const l of layers) {
                     out = l.apply(out);
-                    
+                    if(i===0){
                     activations.push(snapshot(out, {layer: l.name || l.getClassName()}));
+                    }
                     }
                       tf.keep(out);
                     //record passes just for first one
@@ -559,14 +559,8 @@ function snapshot(t, meta = {}) {
                   //export gradMap in a similar way to snapshot
                   //then simply export weights as well
                   
-                }
-                else
-                {
-                  for (const l of layers) {out = l.apply(out)};
-                  
-                }
                 console.log("out is unquestionably here: ", out);
-
+                temporaryLossArray.push(value.dataSync());
                 return out;
               })(); //});
             console.log("logits: ", logits);
@@ -574,19 +568,12 @@ function snapshot(t, meta = {}) {
             console.log("preds:",preds);
             console.log("actual label:",ysTestBatch.slice([i, 0], [1, NUM_CLASSES]).argMax(-1).dataSync()[0]);
             console.log("actual backward pass:");
+            let averageValLoss = temporaryLossArray.reduce((acc, curr) => acc + curr/50, 0);
+            history.vallosses.push(averageValLoss);
             // console.log(ys)
           }
           console.log("\n\n\n\n\n\n");
-  
-  
-          // console.log("rawActivations just choosing 0th: ",activations[0].vals);
-          // console.log("rawActivations just choosing 1th: ",activations[1].vals);
-          // console.log("rawActivations just choosing 2th: ",activations[2].vals);
-          // console.log("rawActivations just choosing 3th: ",activations[3].vals);
-          history[iter] = {
-            losses: Array.from(lossPerItem)
-          };
-   
+
     
           iter++;
     
@@ -694,9 +681,9 @@ function createWeightsViz(modelLayers) {
         const layerDiv = document.createElement('div');
         layerDiv.id = `layer-viz-${i}`;
         layerDiv.innerHTML = `<h4>Layer ${i}: ${modelLayers[i].getClassName()}</h4>
-<div id="weights-${i}"></div>
-<div id="activations-${i}"></div>
-<div id="grads-${i}"></div>`;
+                              <div id="weights-${i}"></div>
+                              <div id="activations-${i}"></div>
+                              <div id="grads-${i}"></div>`;
         vizContainer.appendChild(layerDiv);
     }
 }
