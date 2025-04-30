@@ -17,11 +17,11 @@ let history = {
     losses: [],
     vallosses: [],
     activations: {},
-    activationsShapes: {},
+    activationShapes: {},
     gradients: {},
-    gradientsShapes: {},
+    gradientShapes: {},
     weights: {},
-    weightsShapes: {} 
+    weightShapes: {} 
     };
 
 //run func
@@ -439,26 +439,26 @@ function getArrayShape(arr) {
     }
     return shape;
 }
-function handleLayerVisualizationUpdates(activations,grads,weights){
+function handleLayerVisualizationUpdates(activations,grads,weights,weightShapes,activationShapes,gradientShapes){
     let layerViz = document.getElementById('layersViz');
     if(layerViz.dataset.isLoaded === "false"){
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        const imageData = ctx.createImageData(width, height);
+        // const canvas = document.createElement('canvas');
+        // canvas.width = width;
+        // canvas.height = height;
+        // const ctx = canvas.getContext('2d');
+        // const imageData = ctx.createImageData(width, height);
         //check input shapes:
         console.log("activation shapes");
-        for(const arr of activations){
-            console.log("array shape: ", getArrayShape(arr));
+        for (const [layerName, arrList] of Object.entries(activations)) {
+            console.log("layer shape: ", activationShapes[layerName]);
         }
         console.log("grad shapes");
-        for(const arr of grads){
-            console.log("array shape: ", getArrayShape(arr));
+        for(const [layerName, arrList] of Object.entries(grads)){
+            console.log("layer shape: ", gradientShapes[layerName]);
         }
         console.log("weight shapes");
-        for(const arr of weights){
-            console.log("array shape: ", getArrayShape(arr));
+        for(const [layerName, arrList] of Object.entries(weights)){
+            console.log("layer shape: ", weightShapes[layerName]);
         }
         // //should be layer containers
         // for(const layer of layerViz.children){
@@ -503,7 +503,7 @@ function handleLayerVisualizationUpdates(activations,grads,weights){
           try{
             dummy = layer.layer.apply(dummy);
             console.log("passed through layer: ", layer.id, " with shape: ", dummy.shape); // after apply
-            history.
+            //history.
           }
           catch(e){
             console.log("ERROR IN MODEL CONFIGURATION!: ", e);
@@ -628,6 +628,7 @@ function handleLayerVisualizationUpdates(activations,grads,weights){
                             history.activations[l.name] = [];
                         }
                         history.activations[l.name].push(out.dataSync());
+                        history.activationShapes[l.name] = out.shape;
                     }
                     }
                       tf.keep(out);
@@ -647,94 +648,61 @@ function handleLayerVisualizationUpdates(activations,grads,weights){
                   const layersLength = layers.length;
                   let iterator = 0;
                   if(i===0){
-                    // for(const layer of layers){
-                    //     if (!history.gradients[layer.name]) {
-                    //         history.gradients[layer.name] = [];
-                    //     }
-                    //     history.gradients[layer.name].push(gradMap[layer.name]);
-
-                    //     let currentName = trainableVars[iterator].name;
-                    //     console.log("layer.name: ", layer.name, " and iterator value: ", iterator);
-                    //     console.log("trainableVars[iterator].name: ", trainableVars[iterator].name);
-                    //     if(layer.name.includes("conv2d")&&currentName.includes("kernel")){
-                    //         if (!history.weights[layer.name]) {
-                    //             history.weights[layer.name] = [];
-                    //         }
-                    //         try{
-                    //             history.weights[layer.name].push(trainableVars[iterator].dataSync());
-                    //             console.log("\n\n\n\ iterator success!\n\n\n: ", iterator);
-                    //             console.log("trainableVars[iterator].dataSync(): ", trainableVars[iterator].dataSync());
-                    //         }
-                    //         catch(e){
-                    //             console.log("error in weights: ", e);
-                    //         }
-                    //         iterator++;
-                    //     }
-                    //     else if(layer.name.includes("dense")&&currentName.includes("kernel")){
-                    //         if (!history.weights[layer.name]) {
-                    //             history.weights[layer.name] = [];
-                    //         }
-                    //         try{
-                    //             history.weights[layer.name].push(trainableVars[iterator].dataSync());
-                    //             console.log("\n\n\n\ iterator success!\n\n\n: ", iterator);
-                    //             console.log("trainableVars[iterator].dataSync(): ", trainableVars[iterator].dataSync());
-                                
-                    //         }
-                    //         catch(e){
-                    //             console.log("error in weights: ", e);
-                    //         }
-                    //         iterator++;
-                    //     }
-                        
-                        //update gradients for each layer:
-                        for(const layer of layers){
-                            if (!history.gradients[layer.name]) {
-                                history.gradients[layer.name] = [];
-                            }
-                            history.gradients[layer.name].push(gradMap[layer.name]);
+                
+                    //update gradients for each layer:
+                    for(const layer of layers){
+                        if (!history.gradients[layer.name]) {
+                            history.gradients[layer.name] = [];
+                            
                         }
-                        //new
-                        for(const trw of trainableVars){
-  
-                            let currentName = trw.name;
-                            let newName;
-                            console.log("currentName: ", currentName, " and iterator value: ", iterator);
-                            console.log("trainableVars[iterator].name: ", trainableVars[iterator].name);
-                            if(currentName.includes("conv2d")&&currentName.includes("kernel")){
-                                newName = "conv2d";
-                                if (!history.weights[newName]) {
-                                    history.weights[newName] = [];
-                                }
-                                try{
-                                    history.weights[newName].push(trw.dataSync());
-                                    console.log("\n\n\n\ iterator success!: ", iterator, " and newName: ", newName);
-                                    console.log("trw.dataSync(): ", trw.dataSync());
-                                }
-                                catch(e){
-                                    console.log("error in weights: ", e);
-                                }
-                                iterator++;
-                            }
-                            else if(currentName.includes("dense")&&currentName.includes("kernel")){
-                                newName = "dense";
-                                if (!history.weights[newName]) {
-                                    history.weights[newName] = [];
-                                }
-                                try{
-                                    history.weights[newName].push(trw.dataSync());
-                                    console.log("\n\n\n\ iterator success!: ", iterator, " and newName: ", newName);
-                                    console.log("trw.dataSync(): ", trw.dataSync());
-                                    
-                                }
-                                catch(e){
-                                    console.log("error in weights: ", e);
-                                }
-                                iterator++;
-                            }
+                        history.gradients[layer.name].push(gradMap[layer.name]);
+                        history.gradientShapes[layer.name] = gradMap[layer.name].shape;
+                    }
+                    //new
+                    for(const trw of trainableVars){
 
-                        
+                        let currentName = trw.name;
+                        let newName;
+                        console.log("currentName: ", currentName, " and iterator value: ", iterator);
+                        console.log("trainableVars[iterator].name: ", trainableVars[iterator].name);
+                        if(currentName.includes("conv2d")&&currentName.includes("kernel")){
+                            newName = "conv2d";
+                            if (!history.weights[newName]) {
+                                history.weights[newName] = [];
+                                history.weightShapes[newName] = trw.shape;
+                            }
+                            try{
+                                history.weights[newName].push(trw.dataSync());
+                                console.log("\n\n\n\ iterator success!: ", iterator, " and newName: ", newName);
+                                console.log("trw.dataSync(): ", trw.dataSync());
+                                console.log("trw.shape: ", trw.shape);
+                            }
+                            catch(e){
+                                console.log("error in weights: ", e);
+                            }
+                            iterator++;
+                        }
+                        else if(currentName.includes("dense")&&currentName.includes("kernel")){
+                            newName = "dense";
+                            if (!history.weights[newName]) {
+                                history.weights[newName] = [];
+                                history.weightShapes[newName] = trw.shape;
+                            }
+                            try{
+                                history.weights[newName].push(trw.dataSync());
+                                console.log("\n\n\n\ iterator success!: ", iterator, " and newName: ", newName);
+                                console.log("trw.dataSync(): ", trw.dataSync());
+                                console.log("trw.shape: ", trw.shape);
+                            }
+                            catch(e){
+                                console.log("error in weights: ", e);
+                            }
+                            iterator++;
                         }
 
+                        
+                    }
+                    
                     // for (const v of trainableVars)
                     // for(const weightArr of trainableVars){
                         
@@ -749,7 +717,8 @@ function handleLayerVisualizationUpdates(activations,grads,weights){
             let averageValLoss = temporaryLossArray.reduce((acc, curr) => acc + curr/50, 0);
             history.vallosses.push(averageValLoss);
             // document.getElementById('outputText').textContent = JSON.stringify(history);
-            console.log("history.activations: ", history.activations);
+            // console.log("history.activations: ", history.activations);
+            handleLayerVisualizationUpdates(history.activations,history.gradients,history.weights,history.weightShapes);
             // console.log(ys)
           }
           console.log("\n\n\n\n\n\n");
