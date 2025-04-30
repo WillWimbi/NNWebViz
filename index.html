@@ -125,8 +125,8 @@
     <div id="box">GIMME DAT BACON</div>
     <input type="file" id="fileInput">
     <div id="perfVizArea" class="container">
-        <div id="lossGraph"></div>
-        <div id="accGraph"></div>
+        <canvas id="lossGraph"></canvas>
+        <canvas id="accGraph"></canvas>
     </div>
     <!-- <div id="console-output"></div> -->
     
@@ -229,7 +229,7 @@
             <div class="block" id="dense-clone" draggable="true" data-type="dense">
                 <div class="trash-icon">🗑️</div>
                 <h4>Dense (Linear) Layer</h4>
-                Input Channels: <input type="text" placeholder="inputChannels"><br>
+                Input Channels: <input type="text" placeholder="inputChannels" value = "256"><br>
                 Output Channels: <input type="text" placeholder="outputChannels" value="10">
             </div>
             
@@ -276,5 +276,6 @@
     </div> -->
 
     <script src="./userTrainingExperience.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>
