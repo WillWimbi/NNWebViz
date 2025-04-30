@@ -13,8 +13,7 @@
                 font-family: monospace;
                 background-color: #f4f4f4;
                 white-space: pre-wrap;}
-            
-
+    
     #demoGrid{
         display:grid;
         grid-template-columns:repeat(5, max-content);
@@ -28,11 +27,9 @@
     canvas {
       border: 1px solid #444;
     }
-
-
-
-
-        .container {
+        
+        
+                .container {
         display: flex;
         gap: 20px;
         }
@@ -138,7 +135,6 @@
             
         
 <body>
-    <div id="demoGrid"></div>
     <canvas id="canvas" width="300" height="300"></canvas>
     <div draggable="true" class="layer-component" data-layer-type="dense">Dense Layer</div>
     <div id="box">GIMME DAT BACON</div>
@@ -147,7 +143,6 @@
         <canvas id="lossGraph"></canvas>
         <canvas id="accGraph"></canvas>
     </div>
-    
     <!-- <div id="console-output"></div> -->
     
     <!-- <div class="block" draggable="true" id="blocky1">mOVE 120 STEPS
@@ -245,7 +240,6 @@
                 Strides: <input type="text" placeholder="strides" value="2">
             </div>
             
-            <!-- Flatten Layer -->
             <div class="block" id="flatten-clone" draggable="true" data-type="flatten">
                 <div class="trash-icon">🗑️</div>
                 <h4>Flatten Layer</h4>
@@ -259,6 +253,8 @@
                 Output Channels: <input type="text" placeholder="outputChannels" value="10">
             </div>
             
+            
+
             <!-- Loss block -->
             <div class="block" id="loss" draggable="true" data-type="loss">
                 <h4>Loss</h4>
