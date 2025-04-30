@@ -13,7 +13,25 @@
                 font-family: monospace;
                 background-color: #f4f4f4;
                 white-space: pre-wrap;}
-    
+            
+
+    #demoGrid{
+        display:grid;
+        grid-template-columns:repeat(5, max-content);
+        gap:12px;
+        }
+
+    .demoCell {
+      text-align: center;
+      font: 14px/1 monospace;
+    }
+    canvas {
+      border: 1px solid #444;
+    }
+
+
+
+
         .container {
         display: flex;
         gap: 20px;
@@ -56,9 +74,9 @@
         background-color: #f0f0f0;
         }
     
-        .trash-icon {
+        /* .trash-icon {
             
-        }
+        } */
     
         .visualization-container {
             margin: 20px 0;
@@ -120,6 +138,7 @@
             
         
 <body>
+    <div id="demoGrid"></div>
     <canvas id="canvas" width="300" height="300"></canvas>
     <div draggable="true" class="layer-component" data-layer-type="dense">Dense Layer</div>
     <div id="box">GIMME DAT BACON</div>
@@ -128,6 +147,7 @@
         <canvas id="lossGraph"></canvas>
         <canvas id="accGraph"></canvas>
     </div>
+    
     <!-- <div id="console-output"></div> -->
     
     <!-- <div class="block" draggable="true" id="blocky1">mOVE 120 STEPS
@@ -225,6 +245,12 @@
                 Strides: <input type="text" placeholder="strides" value="2">
             </div>
             
+            <!-- Flatten Layer -->
+            <div class="block" id="flatten-clone" draggable="true" data-type="flatten">
+                <div class="trash-icon">🗑️</div>
+                <h4>Flatten Layer</h4>
+            </div>
+
             <!-- Dense Layer -->
             <div class="block" id="dense-clone" draggable="true" data-type="dense">
                 <div class="trash-icon">🗑️</div>
@@ -249,8 +275,10 @@
         </div>
     </div>
     <button id="startTrainingButton" class="action-button">Start Training</button>
-    <div class="container" id="modelLayerViz">
-        <div id="layers"></div>
+    <div class="container" id="netViz">
+        <div class = "container" id="layersViz">
+            
+        </div>
         <div class="container" id="imgPerformance">
             <div class="container" id = "bestPerformers">
                 <!--best performers-->

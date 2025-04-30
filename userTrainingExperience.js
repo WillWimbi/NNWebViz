@@ -6,26 +6,21 @@ const NUM_CLASSES = 10;
 const NUM_DATASET_ELEMENTS = 65000;
 const NUM_TRAIN_ELEMENTS = 55000;
 const NUM_TEST_ELEMENTS = NUM_DATASET_ELEMENTS - NUM_TRAIN_ELEMENTS;
-let EPOCH_AMOUNT = 10;
+let EPOCH_AMOUNT = 1;
 let LR = 0.01;
 const itersTilFullTrainingSetUsed = TRAIN_DATA_SIZE / BATCH_SIZE;
 let history = {};
 
+//run func
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('Initializing MNIST data...');
-    try {
-        const data = new MnistData();
-        await data.load();
-        console.log('MNIST data loaded successfully');
-        window.mnistData = data;
-        const dataReadyEvent = new CustomEvent('mnistDataReady', { detail: { data } });
-        document.dispatchEvent(dataReadyEvent);
-    } catch (error) {
-        console.error('Error loading MNIST data:', error);
-        loadingIndicator.textContent = 'Error loading dataset. Please refresh the page.';
-        loadingIndicator.style.backgroundColor = 'rgba(255, 0, 0, 0.7)';
-    }
-});
+    const data = new MnistData();
+    await data.load();
+    
+    document.getElementById("startTrainingButton").addEventListener("click", async () => {
+        const [modelComponents, optimizer] = buildModel(); // requires DOM to exist
+        trainOnlyLayers(data,modelComponents,optimizer); // needs model + data
+    });
+  });
 
 const MNIST_IMAGES_SPRITE_PATH =
     'https://storage.googleapis.com/learnjs-data/model-builder/mnist_images.png';
@@ -187,50 +182,164 @@ function buildModel() {
 
     for (let i = 0; i < children.length; i++) {
         const child = children[i];
-        if (i === 0 && child.id === "conv2d") {
-            modelArr.push(tf.layers.conv2d({
-                inputShape: [IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS],
-                kernelSize: child.kernelSize || 3,
-                filters: child.filters || 16,
-                strides: child.strides || 1,
-                kernelInitializer: 'varianceScaling'
-            }));
+        if (i === 0 && child.dataset.type === "conv2d") {
+            const inputs = child.querySelectorAll('input');
+            const kernelSize = parseInt(inputs[0].value) || 3;
+            const filters = parseInt(inputs[1].value) || 16;
+            const strides = parseInt(inputs[2].value) || 1;
+    
+            modelArr.push({
+                id: "conv2d",
+                layer: tf.layers.conv2d({
+                    inputShape: [IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS],
+                    kernelSize: kernelSize,
+                    filters: filters,
+                    strides: strides,
+                    kernelInitializer: 'varianceScaling'
+                }),
+                info: {
+                    kernelSize: kernelSize,
+                    filters: filters,
+                    strides: strides,
+                    kernelInitializer: 'varianceScaling'
+                },
+                currentTestActivations: [],
+                currentTestGradients: [],
+                currentTestWeights: []
+            });
         } 
-        else if (child.id === "conv2d") {
-            modelArr.push(tf.layers.conv2d({
-                kernelSize: child.kernelSize || 3,
-                filters: child.filters || 16,
-                strides: child.strides || 1,
-                kernelInitializer: 'varianceScaling'
-            }));
+        else if (child.dataset.type === "conv2d") {
+            const inputs = child.querySelectorAll('input');
+            const kernelSize = parseInt(inputs[0].value) || 3;
+            const filters = parseInt(inputs[1].value) || 16;
+            const strides = parseInt(inputs[2].value) || 1;
+            
+            modelArr.push({
+                id: "conv2d",
+                layer: tf.layers.conv2d({
+                    kernelSize: kernelSize,
+                    filters: filters,
+                    strides: strides,
+                    kernelInitializer: 'varianceScaling'
+                }),
+                info: {
+                    kernelSize: kernelSize,
+                    filters: filters,
+                    strides: strides,
+                    kernelInitializer: 'varianceScaling'
+                },
+                currentTestActivations: [],
+                currentTestGradients: [],
+                currentTestWeights: []
+            });
         } 
-        else if (child.id === "dense") {
-            modelArr.push(tf.layers.dense({
-                inputShape: child.inputChannels ? [parseInt(child.inputChannels)] : undefined,
-                units: child.outputChannels ? parseInt(child.outputChannels) : 10,
-            }));
+        else if (child.dataset.type === "dense") {
+            const inputs = child.querySelectorAll('input');
+            const inputChannels = parseInt(inputs[0].value);
+            const outputChannels = parseInt(inputs[1].value) || 10;
+            
+            modelArr.push({
+                id: "dense",
+                layer: tf.layers.dense({
+                    inputShape: inputChannels ? [inputChannels] : undefined,
+                    units: outputChannels
+                }),
+                info: {
+                    inputShape: inputChannels ? [inputChannels] : undefined,
+                    units: outputChannels
+                },
+                currentTestActivations: [],
+                currentTestGradients: [],
+                currentTestWeights: []
+            });
         } 
-        else if (child.id === "relu") {
-            modelArr.push(tf.layers.activation({ activation: 'relu' }));
+        else if (child.dataset.type === "relu") {
+            modelArr.push({
+                id: "relu",
+                layer: tf.layers.activation({ activation: 'relu' }),
+                info: {
+                    activation: 'relu'
+                },
+                currentTestActivations: [],
+                currentTestGradients: [],
+                currentTestWeights: []
+            });
         } 
-        else if (child.id === "sigmoid") {
-            modelArr.push(tf.layers.activation({ activation: 'sigmoid' }));
+        else if (child.dataset.type === "sigmoid") {
+            modelArr.push({
+                id: "sigmoid",
+                layer: tf.layers.activation({ activation: 'sigmoid' }),
+                info: {
+                    activation: 'sigmoid'
+                },
+                currentTestActivations: [],
+                currentTestGradients: [],
+                currentTestWeights: []
+            });
         } 
-        else if (child.id === "tanh") {
-            modelArr.push(tf.layers.activation({ activation: 'tanh' }));
+        else if (child.dataset.type === "tanh") {
+            modelArr.push({
+                id: "tanh",
+                layer: tf.layers.activation({ activation: 'tanh' }),
+                info: {
+                    activation: 'tanh'
+                },
+                currentTestActivations: [],
+                currentTestGradients: [],
+                currentTestWeights: []
+            });
         } 
-        else if (child.id === "maxpool") {
-            modelArr.push(tf.layers.maxPooling2d({
-                poolSize: child.poolSize || [2, 2],
-                strides: child.poolSize || [2, 2]
-            }));
+        else if (child.dataset.type === "maxpool") {
+            const inputs = child.querySelectorAll('input');
+            const poolSize = parseInt(inputs[0].value) || 2;
+            const strides = parseInt(inputs[1].value) || 2;
+            
+            modelArr.push({
+                id: "maxpool",
+                layer: tf.layers.maxPooling2d({
+                    poolSize: [poolSize, poolSize],
+                    strides: [strides, strides]
+                }),
+                info: {
+                    poolSize: [poolSize, poolSize],
+                    strides: [strides, strides]
+                },
+                currentTestActivations: [],
+                currentTestGradients: [],
+                currentTestWeights: []
+            });
         }
-        else if (child.id === "loss") {
-            const root = document.getElementById('loss');
-            const [optSel, lossSel] = root.getElementsByTagName('select');
-            const optimizerName = optSel.value;
-            // const lossName = lossSel.value;
-            const optimizer = {
+        else if (child.dataset.type === "flatten") {
+            modelArr.push({
+                id: "flatten",
+                layer: tf.layers.flatten(),
+                info: {
+                    activation: 'flatten'
+                },
+                currentTestActivations: [],
+                currentTestGradients: [],
+                currentTestWeights: []
+            });
+            // console.log("flatten layer added to modelArr");
+        }
+        //TF.js doesn't offer standalone crossEntropyLayer, maybe we'll add softmax viz later.
+        // else if(child.dataset.type === "softmax"){
+        //     modelArr.push({
+        //         id: "softmax",
+        //         layer: tf.layers.activation({ activation: 'softmax' }),
+        //         info: {
+        //             activation: 'softmax'
+        //         },
+        //         currentTestActivations: [],
+        //         currentTestGradients: [],
+        //         currentTestWeights: []
+        //     });
+        // }
+        else if (child.dataset.type === "loss") {
+            const selects = child.querySelectorAll('select');
+            const optimizerName = selects[0].value;
+            
+            optimizer = {
                 sgd: tf.train.sgd,
                 adam: tf.train.adam,
             }[optimizerName]();
@@ -238,61 +347,123 @@ function buildModel() {
     }
     return [modelArr, optimizer];
 }
+//not finished yet.
+function buildVizLayers(modelArr){
+    let layersViz = document.getElementById('layersViz');
+    let inputLayerImage = document.createElement('div');
+    inputLayerImage.innerHTML = `
+    <div class="layerBlock">
+        <div class="layerMeta">Input Layer</div>
+        <div class="canvasGrid" id="actGrid1">Gradients</div>
+    </div>`;
+    layersViz.appendChild(inputLayerImage);
+    for(layer of modelArr){
+        const layerBlock = document.createElement('div');
+        layerBlock.innerHTML =`
+        <div class="layerBlock">
+            <div class="layerMeta">${layer.id}</div>
+            
+            <div class="sectionRow">
+                <div class="sectionLabel">Activations:</div>
+                <div class="canvasGrid" id="actGrid1"></div>
+            </div>
+
+            <div class="sectionRow">
+                <div class="sectionLabel">Activation Gradients:</div>
+                <div class="canvasGrid" id="gradGrid1"></div>
+            </div>
+        </div>`;
+        layersViz.appendChild(layerBlock);
+    }
+}
+
+function handleLayerVisualizationUpdates(activations,grads,weights){
+    let layerViz = document.getElementById('layersViz');
+    for(layer of layerViz.children){
+
+
+
+    }
+}
 
 function snapshot(t, meta = {}) {
     return {
       ...meta,                  // layer name, idx, etc.
-      shape : t.shape.slice(),  // clone so it won’t mutate
+      shape : t.shape.slice(),  // clone so it won't mutate
       vals  : Array.from(t.dataSync())  // plain JS array for easy JSON/vis
     };
 }
-  async function trainOnlyLayers(data) {
+  async function trainOnlyLayers(data,modelComponents,optimizer) {
   
-      const layers = [
+    //   let layers = [
     
-        tf.layers.conv2d({
-          inputShape: [28, 28, 1],
-          kernelSize: 5,
-          filters: 8,
-          strides: 1,
-          activation: 'relu',
-          kernelInitializer: 'varianceScaling'
-        }),
+    //     tf.layers.conv2d({
+    //       inputShape: [28, 28, 1],
+    //       kernelSize: 5,
+    //       filters: 8,
+    //       strides: 1,
+    //       activation: 'relu',
+    //       kernelInitializer: 'varianceScaling'
+    //     }),
       
-        tf.layers.maxPooling2d({
-          poolSize: [2, 2],
-          strides: [2, 2]
-        }),
+    //     tf.layers.maxPooling2d({
+    //       poolSize: [2, 2],
+    //       strides: [2, 2]
+    //     }),
       
-        tf.layers.conv2d({
-          kernelSize: 5,
-          filters: 16,
-          strides: 1,
-          activation: 'relu',
-          kernelInitializer: 'varianceScaling'
-        }),
+    //     tf.layers.conv2d({
+    //       kernelSize: 5,
+    //       filters: 16,
+    //       strides: 1,
+    //       activation: 'relu',
+    //       kernelInitializer: 'varianceScaling'
+    //     }),
       
-        tf.layers.maxPooling2d({
-          poolSize: [2, 2],
-          strides: [2, 2]
-        }),
+    //     tf.layers.maxPooling2d({
+    //       poolSize: [2, 2],
+    //       strides: [2, 2]
+    //     }),
       
-        tf.layers.flatten(),
+    //     tf.layers.flatten(),
       
-        tf.layers.dense({
-          units: 10,
-          kernelInitializer: 'varianceScaling'
-        })
+    //     tf.layers.dense({
+    //       units: 10,
+    //       kernelInitializer: 'varianceScaling'
+    //     })
       
-      ];
+    //   ];
+      let modelArr = modelComponents;
+      //logic for selectig model from user input lego blocks.
       
-      let dummy = tf.zeros([1, 28, 28, 1]);
-      for (const layer of layers) {
-          dummy = layer.apply(dummy);
+      
+      let dummy = tf.ones([1, 28, 28, 1]);
+      for (const layer of modelArr) {
+          try{
+            dummy = layer.layer.apply(dummy);
+            console.log("passed through layer: ", layer.id, " with shape: ", dummy.shape); // after apply
+
+          }
+          catch(e){
+            console.log("ERROR IN MODEL CONFIGURATION!: ", e);
+          }
+      }
+      let layers = modelArr.map(part => part.layer);
+      for(const layer of layers){
+        console.log("layer initial test!: ", layer.name, layer.shape);
       }
       dummy.dispose(); // clean up dummy tensor
-      
-      const optimizer = tf.train.adam(1e-3);
+    //   for (const [i, layer] of modelArr.entries()) {
+    //     console.log(`Layer ${i} - Type: ${layer.layer?.getClassName?.() || 'Unknown'}`);
+    //     console.log(`  Name: ${layer.layer?.name}`);
+    //     console.log(`  Trainable: ${layer.layer?.trainable}`);
+    //     console.log(`  Batch Input Shape: ${layer.layer?.batchInputShape}`);
+    //     console.log(`  Output Shape: ${layer.layer?.outputShape}`);
+    //     if (layer.layer?.trainableWeights?.length) {
+    //       for (const w of layer.layer.trainableWeights) {
+    //         console.log(`    Weight: ${w.name}, shape: ${w.shape}`);
+    //       }
+    //     }
+    //   }
       const lossFn = (yTrue, yPred) =>
         tf.losses.softmaxCrossEntropy(yTrue, yPred).mean();
     
@@ -317,16 +488,16 @@ function snapshot(t, meta = {}) {
   
           const lossPerItem = new Float32Array(BATCH_SIZE);
           
-          
-    
-          tf.tidy(() => {
-    
-            const trainableVars = [];
+          const trainableVars = [];
             for (const layer of layers) {
               for (const w of layer.trainableWeights) {
                 trainableVars.push(w.val);
               }
             }
+    
+          tf.tidy(() => {
+    
+            
             //
             let act = xsBatch;
             
@@ -343,12 +514,15 @@ function snapshot(t, meta = {}) {
                       if (vals[r] < -10 || vals[r] > 10) {
                         // console.log("wow! its big/small!", vals[r]);
                       }
-                  
                 }
+                console.log("layer: ", l.name);
+                console.log("act.shape: ", act.shape);
                 // console.log('y1tofloat:',y1.toFloat().dataSync());
-                const loss = lossFn(ysBatch, act);
-                return loss;
-              }, trainableVars);
+
+              }//end of const l for loop
+              const loss = lossFn(ysBatch, act);
+              return loss;
+            }, trainableVars);
   
   
             const gradMap = {};
@@ -368,29 +542,37 @@ function snapshot(t, meta = {}) {
           //lets do a single forward pass on a single tensor
           for(let i=0;i<25;i++){
             
-            const logits = tf.tidy(() => {
+            const logits = (() => {
                 let out = imgs.slice([i, 0, 0, 0], [1, 28, 28, 1]);
                 if(i===0){
                   const {value,grads} = tf.variableGrads(() => {
                   for (const l of layers) {
-                    out = l.apply(out)};
+                    out = l.apply(out);
                     
                     activations.push(snapshot(out, {layer: l.name || l.getClassName()}));
-                      
+                    }
+                      tf.keep(out);
                     //record passes just for first one
-                  return out;},trainableVars);
+                  return lossFn(ysTestBatch.slice([i, 0], [1, NUM_CLASSES]), out);},trainableVars);
+                  const gradMap = {};
                   for (const v of trainableVars) gradMap[v.name] = grads[v.name];
                   //export gradMap in a similar way to snapshot
                   //then simply export weights as well
+                  
                 }
                 else
                 {
                   for (const l of layers) {out = l.apply(out)};
+                  
                 }
-              });
+                console.log("out is unquestionably here: ", out);
+
+                return out;
+              })(); //});
+            console.log("logits: ", logits);
             const preds = await logits.softmax().data(); //.argMax(-1)
             console.log("preds:",preds);
-            console.log("actual label:",ysTestBatch.slice([i, 0], [1, 10]).argMax(-1).dataSync()[0]);
+            console.log("actual label:",ysTestBatch.slice([i, 0], [1, NUM_CLASSES]).argMax(-1).dataSync()[0]);
             console.log("actual backward pass:");
             // console.log(ys)
           }
@@ -427,6 +609,49 @@ function snapshot(t, meta = {}) {
       /***** AFTER training *****/
       /***** AFTER training *****/
       /***** AFTER training *****/
+      async function showPredictions(data) {
+  const BATCH = 25;
+  const {xs}  = data.nextTestBatch(BATCH);
+  const imgs  = xs.reshape([BATCH, 28, 28, 1]);
+
+  /* ---------- forward pass ---------- */
+  const logits = tf.tidy(() => {
+    let out = imgs;
+    for (const l of layers) out = l.apply(out);
+    return out;
+  });
+  const preds = await logits.softmax().argMax(-1).data();
+  logits.dispose();
+
+  /* ---------- render ---------- */
+  const grid = document.getElementById('demoGrid');
+  grid.innerHTML = '';
+
+  const imgTensors = tf.unstack(imgs);              // <-- create first
+  console.log('imgTensors len =', imgTensors.length); // now it’s defined
+
+  await Promise.all(
+    imgTensors.map(async (t, i) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 28;
+      await tf.browser.toPixels(t.squeeze(), canvas);
+      t.dispose();
+
+      const cell  = document.createElement('div');
+      cell.className = 'demoCell';
+      cell.appendChild(canvas);
+
+      const label = document.createElement('div');
+      label.textContent = `pred: ${preds[i]}`;
+      cell.appendChild(label);
+
+      grid.appendChild(cell);
+    })
+  );
+
+  console.log('children in grid =', grid.childElementCount); // should print 25
+  xs.dispose(); imgs.dispose();
+  await tf.nextFrame();}
 }
 
 function updateWeightViz() {
@@ -463,7 +688,7 @@ function updatePredsViz() {
 }
 
 function createWeightsViz(modelLayers) {
-    const vizContainer = document.getElementById('modelLayerViz');
+    const vizContainer = document.getElementById('netViz');
     vizContainer.innerHTML = '';
     for (let i = 0; i < modelLayers.length; i++) {
         const layerDiv = document.createElement('div');
@@ -475,3 +700,4 @@ function createWeightsViz(modelLayers) {
         vizContainer.appendChild(layerDiv);
     }
 }
+
