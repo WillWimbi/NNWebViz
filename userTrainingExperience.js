@@ -404,8 +404,13 @@ function buildVizLayers(modelArr){
             </div>
 
             <div class="sectionRow">
-                <div class="sectionLabel">Activation Gradients:</div>
+                <div class="sectionLabel">Gradients:</div>
                 <div class="canvasGrid" id="gradGrid1"></div>
+            </div>
+
+            <div class="sectionRow">
+                <div class="sectionLabel">Weights:</div>
+                <div class="canvasGrid" id="weightGrid1"></div>
             </div>
         </div>`;
         layersViz.appendChild(layerBlock);
@@ -414,22 +419,25 @@ function buildVizLayers(modelArr){
 
 function handleLayerVisualizationUpdates(activations,grads,weights){
     let layerViz = document.getElementById('layersViz');
-    for(layer of layerViz.children){
+    //should be layer containers
+    for(const layer of layerViz.children){
+        //go into viewing area grids:
+        let activation = layer.querySelector('#actGrid1');
+        let gradient = layer.querySelector('#gradGrid1');
+        let weight = layer.querySelector('#weightGrid1');
+            //should be canvas grids.
+            //3 for loops, this one for weights.
+            for(const weight of weights){
+                let canvas = document.createElement('canvas');
+                //.....
 
+            }
 
 
     }
 }
 
 
-
-function snapshot(t, meta = {}) {
-    return {
-      ...meta,                  // layer name, idx, etc.
-      shape : t.shape.slice(),  // clone so it won't mutate
-      vals  : Array.from(t.dataSync())  // plain JS array for easy JSON/vis
-    };
-}
   async function trainOnlyLayers(data,modelComponents,optimizer) {
 
       let modelArr = modelComponents;
@@ -479,11 +487,11 @@ function snapshot(t, meta = {}) {
     
         for (let outer = 0; outer < itersTilFullTrainingSetUsed; ++outer) {
           const trainBatch = data.nextTrainBatch(BATCH_SIZE);
-          const testBatch = data.nextTestBatch(25); //compute validation loss later
+          const testBatch = data.nextTestBatch(50); //compute validation loss later
           // const batch = window.mnistData.nextTrainBatch(BATCH_SIZE);
           const xsBatch = trainBatch.xs.reshape([BATCH_SIZE, 28, 28, 1]);
           const ysBatch = trainBatch.labels;
-          const xsTestBatch = testBatch.xs.reshape([25, 28, 28, 1]);
+          const xsTestBatch = testBatch.xs.reshape([50, 28, 28, 1]);
           const ysTestBatch = testBatch.labels;
   
           
@@ -493,6 +501,7 @@ function snapshot(t, meta = {}) {
                 trainableVars.push(w.val);
               }
             }
+            if(iter===0){console.log("trainableVars: \n\n\n\n\n\n\n\n\n\n\n\n", trainableVars);}
     
           tf.tidy(() => {
     
@@ -541,28 +550,67 @@ function snapshot(t, meta = {}) {
           //lets do a single forward pass on a single tensor
           for(let i=0;i<50;i++){
             
-            const logits = (() => {
+            const [logits,grads] = (() => {
                 let out = imgs.slice([i, 0, 0, 0], [1, 28, 28, 1]);
                 
                   const {value,grads} = tf.variableGrads(() => {
                   for (const l of layers) {
                     out = l.apply(out);
                     if(i===0){
-                    activations.push(snapshot(out, {layer: l.name || l.getClassName()}));
+                        //log activations if first iteration of batch.
+                        if (!history.activations[l.name]) {
+                            history.activations[l.name] = [];
+                        }
+                        history.activations[l.name].push(out.dataSync());
                     }
                     }
                       tf.keep(out);
                     //record passes just for first one
                   return lossFn(ysTestBatch.slice([i, 0], [1, NUM_CLASSES]), out);},trainableVars);
-                  const gradMap = {};
-                  for (const v of trainableVars) gradMap[v.name] = grads[v.name];
+                  
                   //export gradMap in a similar way to snapshot
                   //then simply export weights as well
                   
                 console.log("out is unquestionably here: ", out);
                 temporaryLossArray.push(value.dataSync());
-                return out;
+                return [out,grads];
               })(); //});
+              const gradMap = {};
+                  for (const v of trainableVars) gradMap[v.name] = grads[v.name];
+                  //update weights and gradients if first iteration of batch.
+                  const layersLength = layers.length;
+                  let iterator = 0;
+                  if(i===0){
+                    for(const layer of layers){
+                        if (!history.gradients[layer.name]) {
+                            history.gradients[layer.name] = [];
+                        }
+                        history.gradients[layer.name].push(gradMap);
+
+
+                        if(layer.name.includes("conv2d")){
+                            if (!history.weights[layer.name]) {
+                                history.weights[layer.name] = [];
+                            }
+                            
+                            history.weights[layer.name].push(trainableVars[iterator]);
+                        }
+                        else if(layer.name.includes("dense")){
+                            if (!history.weights[layer.name]) {
+                                history.weights[layer.name] = [];
+                            }
+                            history.weights[layer.name].push(trainableVars[iterator]);
+                        }
+
+                        iterator++;
+                    }
+
+                    for (const v of trainableVars)
+                    for(const weightArr of trainableVars){
+                        
+
+                    }
+                  }
             console.log("logits: ", logits);
             const preds = await logits.softmax().data(); //.argMax(-1)
             console.log("preds:",preds);
@@ -573,7 +621,7 @@ function snapshot(t, meta = {}) {
             // console.log(ys)
           }
           console.log("\n\n\n\n\n\n");
-
+          console.log("history: ", history);
     
           iter++;
     
