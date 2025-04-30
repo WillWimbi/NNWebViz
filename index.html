@@ -135,7 +135,7 @@
             
         
 <body>
-    
+    <div>
     <div id="demoGrid"></div>
     <canvas id="canvas" width="300" height="300"></canvas>
     <div draggable="true" class="layer-component" data-layer-type="dense">Dense Layer</div>
@@ -145,7 +145,9 @@
         <canvas id="lossGraph"></canvas>
         <canvas id="accGraph"></canvas>
     </div>
-    <!-- <div id="console-output"></div> -->
+    <div id="tinyOutputWindow" style="width: 100%; height: 2000px; border: 1px solid #ddd; border-radius: 3px; padding: 5px; overflow-y: auto; background-color: #f9f9f9; position: relative; left: 0;">
+        <p id="outputText">Output will appear here...</p>
+    </div>
     
     <!-- <div class="block" draggable="true" id="blocky1">mOVE 120 STEPS
         <h1>HI!!!</h1>
@@ -273,8 +275,8 @@
         </div>
     </div>
     <button id="startTrainingButton" class="action-button">Start Training</button>
-    <div class="container" id="netViz">
-        <div class = "container" id="layersViz">
+    <div class="container" id="netViz" >
+        <div class = "container" id="layersViz" data-is-loaded="false">
             
         </div>
         <div class="container" id="imgPerformance">

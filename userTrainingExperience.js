@@ -8,44 +8,57 @@ const NUM_TRAIN_ELEMENTS = 55000;
 const NUM_TEST_ELEMENTS = NUM_DATASET_ELEMENTS - NUM_TRAIN_ELEMENTS;
 let EPOCH_AMOUNT = 1;
 let LR = 0.01;
+
+
+
+
 const itersTilFullTrainingSetUsed = TRAIN_DATA_SIZE / BATCH_SIZE;
 let history = {
     losses: [],
     vallosses: [],
     activations: {},
+    activationsShapes: {},
     gradients: {},
-    weights: {}
+    gradientsShapes: {},
+    weights: {},
+    weightsShapes: {} 
     };
 
 //run func
 document.addEventListener('DOMContentLoaded', async () => {
     const ctx = document.getElementById('lossGraph').getContext('2d');
-
-    const lossChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: [],
-        datasets: [{
-        label: 'Loss',
-        data: [],
-        borderColor: 'blue',
-        borderWidth: 2,
-        fill: false
-        }]
-    },
-    options: {
-        animation: false,
-        responsive: true,
-        scales: {
-        x: {
-            title: { display: true, text: 'Batch' }
+    let lossChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+            label: 'Loss',
+            data: [],
+            borderColor: 'blue',
+            borderWidth: 2,
+            fill: false
+            }]
         },
-        y: {
-            title: { display: true, text: 'Loss' }
+        options: {
+            animation: false,
+            responsive: true,
+            scales: {
+            x: {
+                title: { display: true, text: 'Batch' }
+            },
+            y: {
+                title: { display: true, text: 'Loss' },
+                min: 0,
+                suggestedMax: 3.0,
+                beginAtZero: true,
+                adaption: {
+                    maxOverflow: 0.2
+                }
+            }
+            }
         }
-        }
-    }
-    });
+        });
+   
     
    
     const data = new MnistData();
@@ -53,9 +66,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById("startTrainingButton").addEventListener("click", async () => {
         const [modelComponents, optimizer] = buildModel(); // requires DOM to exist
-        trainOnlyLayers(data,modelComponents,optimizer); // needs model + data
+        // Pass the chart to the training function
+        trainOnlyLayers(data, modelComponents, optimizer, lossChart); 
     });
-  });
+});
 
 const MNIST_IMAGES_SPRITE_PATH =
     'https://storage.googleapis.com/learnjs-data/model-builder/mnist_images.png';
@@ -416,29 +430,69 @@ function buildVizLayers(modelArr){
         layersViz.appendChild(layerBlock);
     }
 }
-
+function getArrayShape(arr) {
+    const shape = [];
+    let current = arr;
+    while (Array.isArray(current)) {
+        shape.push(current.length);
+        current = current[0];
+    }
+    return shape;
+}
 function handleLayerVisualizationUpdates(activations,grads,weights){
     let layerViz = document.getElementById('layersViz');
-    //should be layer containers
-    for(const layer of layerViz.children){
-        //go into viewing area grids:
-        let activation = layer.querySelector('#actGrid1');
-        let gradient = layer.querySelector('#gradGrid1');
-        let weight = layer.querySelector('#weightGrid1');
-            //should be canvas grids.
-            //3 for loops, this one for weights.
-            for(const weight of weights){
-                let canvas = document.createElement('canvas');
-                //.....
+    if(layerViz.dataset.isLoaded === "false"){
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(width, height);
+        //check input shapes:
+        console.log("activation shapes");
+        for(const arr of activations){
+            console.log("array shape: ", getArrayShape(arr));
+        }
+        console.log("grad shapes");
+        for(const arr of grads){
+            console.log("array shape: ", getArrayShape(arr));
+        }
+        console.log("weight shapes");
+        for(const arr of weights){
+            console.log("array shape: ", getArrayShape(arr));
+        }
+        // //should be layer containers
+        // for(const layer of layerViz.children){
+        //     //go into viewing area grids:
+        //     let activationContainer = layer.querySelector('#actGrid1');
+        //     let gradientContainer = layer.querySelector('#gradGrid1');
+        //     let weightContainer = layer.querySelector('#weightGrid1');
+        //         //should be canvas grids.
+        //         //3 for loops, this one for weights.
+                
 
-            }
 
+        //         for(const act of activations){
+        //             let canvas = document.createElement('canvas');
+        //             //.....
+        //             tf.browser.toPixels(act, canvas);
+        //         }
+        //         for(const weight of weights){
+        //             let canvas = document.createElement('canvas');
+        //             //.....
 
+        //         }
+        //         for(const grad of grads){
+        //             let canvas = document.createElement('canvas');
+        //             //.....
+        //         }
+
+        // }
+        layerViz.dataset.isLoaded = "true";
     }
 }
 
 
-  async function trainOnlyLayers(data,modelComponents,optimizer) {
+  async function trainOnlyLayers(data,modelComponents,optimizer, lossChart) {
 
       let modelArr = modelComponents;
       //logic for selectig model from user input lego blocks.
@@ -449,7 +503,7 @@ function handleLayerVisualizationUpdates(activations,grads,weights){
           try{
             dummy = layer.layer.apply(dummy);
             console.log("passed through layer: ", layer.id, " with shape: ", dummy.shape); // after apply
-
+            history.
           }
           catch(e){
             console.log("ERROR IN MODEL CONFIGURATION!: ", e);
@@ -457,7 +511,7 @@ function handleLayerVisualizationUpdates(activations,grads,weights){
       }
       let layers = modelArr.map(part => part.layer);
       for(const layer of layers){
-        console.log("layer initial test!: ", layer.name, layer.shape);
+        console.log("layer initial test!: ", layer.name, layer.batchInputShape);
       }
       dummy.dispose(); // clean up dummy tensor
     //   for (const [i, layer] of modelArr.entries()) {
@@ -481,7 +535,12 @@ function handleLayerVisualizationUpdates(activations,grads,weights){
       const itersTilFullTrainingSetUsed = Math.floor(TRAIN_DATA_SIZE / BATCH_SIZE);
     
       let iter = 0;
-      
+      const trainableVars = [];
+      for (const layer of layers) {
+        for (const w of layer.trainableWeights) {
+          trainableVars.push(w.val);
+        }
+      }
       const activations = [];
       for (let epoch = 0; epoch < EPOCH_AMOUNT; ++epoch) {
     
@@ -495,12 +554,7 @@ function handleLayerVisualizationUpdates(activations,grads,weights){
           const ysTestBatch = testBatch.labels;
   
           
-          const trainableVars = [];
-            for (const layer of layers) {
-              for (const w of layer.trainableWeights) {
-                trainableVars.push(w.val);
-              }
-            }
+
             if(iter===0){console.log("trainableVars: \n\n\n\n\n\n\n\n\n\n\n\n", trainableVars);}
     
           tf.tidy(() => {
@@ -542,6 +596,18 @@ function handleLayerVisualizationUpdates(activations,grads,weights){
         let loss = value.dataSync()
         history.losses.push(loss);
         console.log(`Epoch ${epoch} Iter ${iter} loss:`, loss);
+        
+        // Update chart correctly
+        lossChart.data.labels.push(iter);
+        lossChart.data.datasets[0].data.push(loss[0]);
+        const maxLoss = Math.max(...lossChart.data.datasets[0].data);
+
+        // Set the y-axis range dynamically
+        lossChart.options.scales.y.min = 0;
+        lossChart.options.scales.y.max = maxLoss;
+
+        // Now update the chart
+        lossChart.update();
   
           });
           console.log("n\n\n\n\n\n\n here is the test data: \n\n\n\n\n\n\n\n")
@@ -581,35 +647,99 @@ function handleLayerVisualizationUpdates(activations,grads,weights){
                   const layersLength = layers.length;
                   let iterator = 0;
                   if(i===0){
-                    for(const layer of layers){
-                        if (!history.gradients[layer.name]) {
-                            history.gradients[layer.name] = [];
-                        }
-                        history.gradients[layer.name].push(gradMap);
+                    // for(const layer of layers){
+                    //     if (!history.gradients[layer.name]) {
+                    //         history.gradients[layer.name] = [];
+                    //     }
+                    //     history.gradients[layer.name].push(gradMap[layer.name]);
 
-
-                        if(layer.name.includes("conv2d")){
-                            if (!history.weights[layer.name]) {
-                                history.weights[layer.name] = [];
+                    //     let currentName = trainableVars[iterator].name;
+                    //     console.log("layer.name: ", layer.name, " and iterator value: ", iterator);
+                    //     console.log("trainableVars[iterator].name: ", trainableVars[iterator].name);
+                    //     if(layer.name.includes("conv2d")&&currentName.includes("kernel")){
+                    //         if (!history.weights[layer.name]) {
+                    //             history.weights[layer.name] = [];
+                    //         }
+                    //         try{
+                    //             history.weights[layer.name].push(trainableVars[iterator].dataSync());
+                    //             console.log("\n\n\n\ iterator success!\n\n\n: ", iterator);
+                    //             console.log("trainableVars[iterator].dataSync(): ", trainableVars[iterator].dataSync());
+                    //         }
+                    //         catch(e){
+                    //             console.log("error in weights: ", e);
+                    //         }
+                    //         iterator++;
+                    //     }
+                    //     else if(layer.name.includes("dense")&&currentName.includes("kernel")){
+                    //         if (!history.weights[layer.name]) {
+                    //             history.weights[layer.name] = [];
+                    //         }
+                    //         try{
+                    //             history.weights[layer.name].push(trainableVars[iterator].dataSync());
+                    //             console.log("\n\n\n\ iterator success!\n\n\n: ", iterator);
+                    //             console.log("trainableVars[iterator].dataSync(): ", trainableVars[iterator].dataSync());
+                                
+                    //         }
+                    //         catch(e){
+                    //             console.log("error in weights: ", e);
+                    //         }
+                    //         iterator++;
+                    //     }
+                        
+                        //update gradients for each layer:
+                        for(const layer of layers){
+                            if (!history.gradients[layer.name]) {
+                                history.gradients[layer.name] = [];
                             }
-                            
-                            history.weights[layer.name].push(trainableVars[iterator]);
+                            history.gradients[layer.name].push(gradMap[layer.name]);
                         }
-                        else if(layer.name.includes("dense")){
-                            if (!history.weights[layer.name]) {
-                                history.weights[layer.name] = [];
+                        //new
+                        for(const trw of trainableVars){
+  
+                            let currentName = trw.name;
+                            let newName;
+                            console.log("currentName: ", currentName, " and iterator value: ", iterator);
+                            console.log("trainableVars[iterator].name: ", trainableVars[iterator].name);
+                            if(currentName.includes("conv2d")&&currentName.includes("kernel")){
+                                newName = "conv2d";
+                                if (!history.weights[newName]) {
+                                    history.weights[newName] = [];
+                                }
+                                try{
+                                    history.weights[newName].push(trw.dataSync());
+                                    console.log("\n\n\n\ iterator success!: ", iterator, " and newName: ", newName);
+                                    console.log("trw.dataSync(): ", trw.dataSync());
+                                }
+                                catch(e){
+                                    console.log("error in weights: ", e);
+                                }
+                                iterator++;
                             }
-                            history.weights[layer.name].push(trainableVars[iterator]);
+                            else if(currentName.includes("dense")&&currentName.includes("kernel")){
+                                newName = "dense";
+                                if (!history.weights[newName]) {
+                                    history.weights[newName] = [];
+                                }
+                                try{
+                                    history.weights[newName].push(trw.dataSync());
+                                    console.log("\n\n\n\ iterator success!: ", iterator, " and newName: ", newName);
+                                    console.log("trw.dataSync(): ", trw.dataSync());
+                                    
+                                }
+                                catch(e){
+                                    console.log("error in weights: ", e);
+                                }
+                                iterator++;
+                            }
+
+                        
                         }
 
-                        iterator++;
-                    }
-
-                    for (const v of trainableVars)
-                    for(const weightArr of trainableVars){
+                    // for (const v of trainableVars)
+                    // for(const weightArr of trainableVars){
                         
 
-                    }
+                    // }
                   }
             console.log("logits: ", logits);
             const preds = await logits.softmax().data(); //.argMax(-1)
@@ -618,11 +748,12 @@ function handleLayerVisualizationUpdates(activations,grads,weights){
             console.log("actual backward pass:");
             let averageValLoss = temporaryLossArray.reduce((acc, curr) => acc + curr/50, 0);
             history.vallosses.push(averageValLoss);
+            // document.getElementById('outputText').textContent = JSON.stringify(history);
+            console.log("history.activations: ", history.activations);
             // console.log(ys)
           }
           console.log("\n\n\n\n\n\n");
-          console.log("history: ", history);
-    
+          //console.log("history: ", history);
           iter++;
     
           tf.dispose([xsBatch, ysBatch]);
@@ -630,8 +761,9 @@ function handleLayerVisualizationUpdates(activations,grads,weights){
             console.log('TRAINING DONE.');}
         }
         
-      }
-      console.log("testing a bunch!!!:::");
+    }
+    
+    console.log("testing a bunch!!!:::");
       //test on 30 outputs (designed with full batch in mind!!!!)
       // const newArray=[];
       // for(let g=0;g<25;g++){
@@ -644,95 +776,95 @@ function handleLayerVisualizationUpdates(activations,grads,weights){
       /***** AFTER training *****/
       /***** AFTER training *****/
       /***** AFTER training *****/
-      async function showPredictions(data) {
-  const BATCH = 25;
-  const {xs}  = data.nextTestBatch(BATCH);
-  const imgs  = xs.reshape([BATCH, 28, 28, 1]);
+    async function showPredictions(data) {
+        const BATCH = 25;
+        const {xs}  = data.nextTestBatch(BATCH);
+        const imgs  = xs.reshape([BATCH, 28, 28, 1]);
 
-  /* ---------- forward pass ---------- */
-  const logits = tf.tidy(() => {
-    let out = imgs;
-    for (const l of layers) out = l.apply(out);
-    return out;
-  });
-  const preds = await logits.softmax().argMax(-1).data();
-  logits.dispose();
-
-  /* ---------- render ---------- */
-  const grid = document.getElementById('demoGrid');
-  grid.innerHTML = '';
-
-  const imgTensors = tf.unstack(imgs);              // <-- create first
-  console.log('imgTensors len =', imgTensors.length); // now it’s defined
-
-  await Promise.all(
-    imgTensors.map(async (t, i) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = 28;
-      await tf.browser.toPixels(t.squeeze(), canvas);
-      t.dispose();
-
-      const cell  = document.createElement('div');
-      cell.className = 'demoCell';
-      cell.appendChild(canvas);
-
-      const label = document.createElement('div');
-      label.textContent = `pred: ${preds[i]}`;
-      cell.appendChild(label);
-
-      grid.appendChild(cell);
-    })
-  );
-
-  console.log('children in grid =', grid.childElementCount); // should print 25
-  xs.dispose(); imgs.dispose();
-  await tf.nextFrame();}
-}
-
-function updateWeightViz() {
-}
-
-function updateGradsViz(layerIndex, gradientTensors) {
-    const container = document.getElementById(`grads-${layerIndex}`);
-    container.innerHTML = '';
-    gradientTensors.forEach(tensor => {
-        const canvas = document.createElement('canvas');
-        tf.browser.toPixels(tensor.squeeze().clipByValue(0, 1), canvas);
-        container.appendChild(canvas);
-    });
-}
-
-function updateActivationsViz(layerIndex, activationTensor) {
-    const container = document.getElementById(`activations-${layerIndex}`);
-    container.innerHTML = '';
-    if (activationTensor.shape.length > 2) {
-        const slices = activationTensor.split(activationTensor.shape[-1], -1);
-        slices.forEach(slice => {
-            const canvas = document.createElement('canvas');
-            tf.browser.toPixels(slice.squeeze().clipByValue(0, 1), canvas);
-            container.appendChild(canvas);
+        /* ---------- forward pass ---------- */
+        const logits = tf.tidy(() => {
+        let out = imgs;
+        for (const l of layers) out = l.apply(out);
+        return out;
         });
-    } else {
-        const canvas = document.createElement('canvas');
-        tf.browser.toPixels(activationTensor.squeeze().clipByValue(0, 1), canvas);
-        container.appendChild(canvas);
-    }
-}
+        const preds = await logits.softmax().argMax(-1).data();
+        logits.dispose();
 
-function updatePredsViz() {
-}
+        /* ---------- render ---------- */
+        const grid = document.getElementById('demoGrid');
+        grid.innerHTML = '';
 
-function createWeightsViz(modelLayers) {
-    const vizContainer = document.getElementById('netViz');
-    vizContainer.innerHTML = '';
-    for (let i = 0; i < modelLayers.length; i++) {
-        const layerDiv = document.createElement('div');
-        layerDiv.id = `layer-viz-${i}`;
-        layerDiv.innerHTML = `<h4>Layer ${i}: ${modelLayers[i].getClassName()}</h4>
-                              <div id="weights-${i}"></div>
-                              <div id="activations-${i}"></div>
-                              <div id="grads-${i}"></div>`;
-        vizContainer.appendChild(layerDiv);
+        const imgTensors = tf.unstack(imgs);              // <-- create first
+        console.log('imgTensors len =', imgTensors.length); // now it's defined
+
+        await Promise.all(
+        imgTensors.map(async (t, i) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = canvas.height = 28;
+            await tf.browser.toPixels(t.squeeze(), canvas);
+            t.dispose();
+
+            const cell  = document.createElement('div');
+            cell.className = 'demoCell';
+            cell.appendChild(canvas);
+
+            const label = document.createElement('div');
+            label.textContent = `pred: ${preds[i]}`;
+            cell.appendChild(label);
+
+            grid.appendChild(cell);
+        })
+        );
+
+        console.log('children in grid =', grid.childElementCount); // should print 25
+        xs.dispose(); imgs.dispose();
+        await tf.nextFrame();}
     }
-}
+  
+// function updateWeightViz() {
+// }
+
+// function updateGradsViz(layerIndex, gradientTensors) {
+//     const container = document.getElementById(`grads-${layerIndex}`);
+//     container.innerHTML = '';
+//     gradientTensors.forEach(tensor => {
+//         const canvas = document.createElement('canvas');
+//         tf.browser.toPixels(tensor.squeeze().clipByValue(0, 1), canvas);
+//         container.appendChild(canvas);
+//     });
+// }
+
+// function updateActivationsViz(layerIndex, activationTensor) {
+//     const container = document.getElementById(`activations-${layerIndex}`);
+//     container.innerHTML = '';
+//     if (activationTensor.shape.length > 2) {
+//         const slices = activationTensor.split(activationTensor.shape[-1], -1);
+//         slices.forEach(slice => {
+//             const canvas = document.createElement('canvas');
+//             tf.browser.toPixels(slice.squeeze().clipByValue(0, 1), canvas);
+//             container.appendChild(canvas);
+//         });
+//     } else {
+//         const canvas = document.createElement('canvas');
+//         tf.browser.toPixels(activationTensor.squeeze().clipByValue(0, 1), canvas);
+//         container.appendChild(canvas);
+//     }
+// }
+
+// function updatePredsViz() {
+// }
+
+// function createWeightsViz(modelLayers) {
+//     const vizContainer = document.getElementById('netViz');
+//     vizContainer.innerHTML = '';
+//     for (let i = 0; i < modelLayers.length; i++) {
+//         const layerDiv = document.createElement('div');
+//         layerDiv.id = `layer-viz-${i}`;
+//         layerDiv.innerHTML = `<h4>Layer ${i}: ${modelLayers[i].getClassName()}</h4>
+//                               <div id="weights-${i}"></div>
+//                               <div id="activations-${i}"></div>
+//                               <div id="grads-${i}"></div>`;
+//         vizContainer.appendChild(layerDiv);
+//     }
+// }
 
