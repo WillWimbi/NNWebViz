@@ -7,7 +7,7 @@ const NUM_DATASET_ELEMENTS = 65000;
 const NUM_TRAIN_ELEMENTS = 55000;
 const NUM_TEST_ELEMENTS = NUM_DATASET_ELEMENTS - NUM_TRAIN_ELEMENTS;
 let EPOCH_AMOUNT = 1;
-let LR = 0.01;
+let USER_CONST = 0.001;
 
 const builtPanels = new Set();
 
@@ -91,68 +91,76 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById("startTrainingButton").addEventListener("click", async () => {
         const [modelComponents, optimizer] = buildModel(); // requires DOM to exist
         // Pass the chart to the training function
+        const startBtn = document.getElementById("startTrainingButton");
+        startBtn.style.transition = "opacity 5s";
+        startBtn.style.opacity = "0";
+        setTimeout(() => {
+            if (startBtn && startBtn.parentNode) {
+                startBtn.parentNode.removeChild(startBtn);
+            }
+        }, 5000);
         trainOnlyLayers(data, modelComponents, optimizer, lossChart); 
     });
 });
-function preprocessCanvas(canvas) {
-  return tf.tidy(() => {
-    // 1. Read pixels → [H,W,3] uint8
-    let t = tf.browser.fromPixels(canvas);
-    // Scale down the canvas by a factor of 8
-    t = tf.image.resizeBilinear(t.expandDims(-1), [28, 28]).squeeze();
+// function preprocessCanvas(canvas) {
+//   return tf.tidy(() => {
+//     // 1. Read pixels → [H,W,3] uint8
+//     let t = tf.browser.fromPixels(canvas);
+//     // Scale down the canvas by a factor of 8
+//     t = tf.image.resizeBilinear(t.expandDims(-1), [28, 28]).squeeze();
 
-    // 2. Grayscale: 0.299 R + 0.587 G + 0.114 B
-    t = t.mean(2);                       // [H,W]
+//     // 2. Grayscale: 0.299 R + 0.587 G + 0.114 B
+//     t = t.mean(2);                       // [H,W]
 
-    // 3. Resize to 28×28 if the canvas isn't already
-    if (t.shape[0] !== 28 || t.shape[1] !== 28) {
-      t = tf.image.resizeBilinear(t.expandDims(-1), [28, 28]).squeeze();
-    }
+//     // 3. Resize to 28×28 if the canvas isn't already
+//     if (t.shape[0] !== 28 || t.shape[1] !== 28) {
+//       t = tf.image.resizeBilinear(t.expandDims(-1), [28, 28]).squeeze();
+//     }
 
-    // 4. Normalise 0–255 → 0–1 and add batch & channel dims
-    return t
-      .toFloat()
-      .div(255.0)
-      .reshape([1, 28, 28, 1]);          // [B,H,W,C]
-  });
-}
-document.getElementById("userClassifyButton")
-        .addEventListener("click", async () => {
-  const canvas  = document.getElementById("userImage");
-  const img     = preprocessCanvas(canvas)            // → [1,28,28,1] tensor
-  let out       = img;
-  for (const L of history.modelLayersCopy) out = L.apply(out);
-  const pred    = out.softmax().argMax(-1);
-  alert(`You drew a ${await pred.data()}`);
-  img.dispose(); out.dispose(); pred.dispose();
-});
+//     // 4. Normalise 0–255 → 0–1 and add batch & channel dims
+//     return t
+//       .toFloat()
+//       .div(255.0)
+//       .reshape([1, 28, 28, 1]);          // [B,H,W,C]
+//   });
+// }
+// document.getElementById("userClassifyButton")
+//         .addEventListener("click", async () => {
+//   const canvas  = document.getElementById("userImage");
+//   const img     = preprocessCanvas(canvas)            // → [1,28,28,1] tensor
+//   let out       = img;
+//   for (const L of history.modelLayersCopy) out = L.apply(out);
+//   const pred    = out.softmax().argMax(-1);
+//   alert(`You drew a ${await pred.data()}`);
+//   img.dispose(); out.dispose(); pred.dispose();
+// });
 
-const drawCanvas = document.getElementById('userImage');
-const ctx        = drawCanvas.getContext('2d');
-ctx.lineWidth    = 16;
-ctx.lineCap      = 'round';
-ctx.lineJoin     = 'round';
-ctx.strokeStyle  = '#000';
+// const drawCanvas = document.getElementById('userImage');
+// const ctx        = drawCanvas.getContext('2d');
+// ctx.lineWidth    = 16;
+// ctx.lineCap      = 'round';
+// ctx.lineJoin     = 'round';
+// ctx.strokeStyle  = '#000';
 
-let drawing = false;
-function xy(e){ const r = drawCanvas.getBoundingClientRect();
-                return [e.clientX - r.left, e.clientY - r.top]; }
+// let drawing = false;
+// function xy(e){ const r = drawCanvas.getBoundingClientRect();
+//                 return [e.clientX - r.left, e.clientY - r.top]; }
 
-drawCanvas.addEventListener('pointerdown', e => {
-  drawing = true;
-  const [x,y] = xy(e);
-  ctx.beginPath(); ctx.moveTo(x,y);
-});
-drawCanvas.addEventListener('pointermove', e => {
-  if(!drawing) return;
-  const [x,y] = xy(e);
-  ctx.lineTo(x,y); ctx.stroke();
-});
-['pointerup','pointerleave','pointercancel']
-  .forEach(ev => drawCanvas.addEventListener(ev, () => drawing=false));
+// drawCanvas.addEventListener('pointerdown', e => {
+//   drawing = true;
+//   const [x,y] = xy(e);
+//   ctx.beginPath(); ctx.moveTo(x,y);
+// });
+// drawCanvas.addEventListener('pointermove', e => {
+//   if(!drawing) return;
+//   const [x,y] = xy(e);
+//   ctx.lineTo(x,y); ctx.stroke();
+// });
+// ['pointerup','pointerleave','pointercancel']
+//   .forEach(ev => drawCanvas.addEventListener(ev, () => drawing=false));
 
-document.getElementById('clearBtn')?.addEventListener('click',
-  () => ctx.clearRect(0,0,drawCanvas.width,drawCanvas.height));
+// document.getElementById('clearBtn')?.addEventListener('click',
+//   () => ctx.clearRect(0,0,drawCanvas.width,drawCanvas.height));
 
 
 const MNIST_IMAGES_SPRITE_PATH =
@@ -415,9 +423,12 @@ function buildModel() {
             const selects = child.querySelectorAll('select');
             const optimizerName = selects[0].value;
             
+            // Set learning rate for TensorFlow optimizer based on user input
+            const lrInput = child.querySelector('input[placeholder="learning rate"]');
+            const learningRate = lrInput ? parseFloat(lrInput.value) || 0.001 : 0.001;
             optimizer = {
-                sgd: tf.train.sgd,
-                adam: tf.train.adam,
+                sgd: () => tf.train.sgd(learningRate),
+                adam: () => tf.train.adam(learningRate),
             }[optimizerName]();
         }
     }
@@ -577,7 +588,7 @@ function handleLayerVisualizationUpdates(history){
 
 
   async function trainOnlyLayers(data,modelComponents,optimizer, lossChart) {
-
+      optimizer.learningRate = USER_CONST;
       let modelArr = modelComponents;
       //logic for selectig model from user input lego blocks.
       
@@ -681,7 +692,7 @@ function handleLayerVisualizationUpdates(history){
   
             
         if(outer===0){console.log("first iteration:");}
-        let loss = value.dataSync()
+        const loss = value.dataSync()[0];        
         history.losses.push(loss);
         console.log(`Epoch ${epoch} Iter ${iter} loss:`, loss);
   
@@ -811,9 +822,9 @@ function handleLayerVisualizationUpdates(history){
 
                     // Now update the chart
                     lossChart.update();
-                    if(outer%5===0 || [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19].includes(outer)){
+                    // // if(outer%5===0 || [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19].includes(outer)){
                       await showPredictions(imgs, ysTestBatch);
-                    }
+                    // // }
 
                     //update modelLayersCopy
                     history.modelLayersCopy = modelArr.map(obj => obj.layer);
@@ -822,9 +833,9 @@ function handleLayerVisualizationUpdates(history){
                 
                 // console.log(ys)
             }
-          if(outer%5===0 || [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19].includes(outer)){
+          // if(outer%5===0 || [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19].includes(outer)){
             handleLayerVisualizationUpdates(history);
-          }
+          // }
           console.log("\n\n\n\n\n\n");
           //console.log("history: ", history);
           iter++;

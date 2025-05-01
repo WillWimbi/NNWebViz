@@ -1,21 +1,87 @@
-<!-- pretrained-models.html -->
+<!DOCTYPE html>
 <html>
 <head>
-  <script type="module" src="userPretrainedNetsExperience.js"></script>
+  <title>Pretrained Models Visualization</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module" src="./userPretrainedNetsExperience.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
+    h1, h3 { text-align: center; color: #333; }
+    #metricsChartContainer {
+        width: 80%;
+        max-width: 900px;
+        height: 400px;
+        margin: 20px auto;
+        background-color: #fff;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    #imgGridContainer {
+        width: 90%;
+        max-width: 800px;
+        margin: 30px auto;
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    #imgGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+      justify-items: center;
+    }
+    .digit-container {
+      border: 1px solid #ddd;
+      padding: 5px;
+      border-radius: 4px;
+      text-align: center;
+      background-color: #fff;
+      transition: transform 0.2s ease-in-out;
+    }
+    .digit-container:hover {
+        transform: scale(1.1);
+        box-shadow: 0 0 5px rgba(0,0,0,0.2);
+    }
+    .digit-label {
+      font-size: 10px;
+      margin-top: 3px;
+      color: #555;
+    }
+    #loading-indicator {
+        text-align: center;
+        font-size: 1.2em;
+        padding: 30px;
+        color: #666;
+    }
+  </style>
 </head>
 <body>
-  <canvas id="metricsChart"></canvas>
-  <div id="imgGrid"></div>
-  <div>HELLO JUST STATIC</div>
-  <script type="module">
-    import { visualizeRuns } from "/js/userPretrainedNetsExperience.js";
-    fetch('/api/runs')  // <-- dynamic call starts here
-      .then(res => res.json())
-      .then(data => {
-        const imgSrc = idx => `/mnist/${idx}.png`;
-        visualizeRuns(data, imgSrc);
-      });
-  </script>
+  <h1>MNIST Pretrained Model Performance</h1>
+
+  <!-- Chart Container -->
+  <div id="metricsChartContainer">
+      <canvas id="metricsChart"></canvas>
+  </div>
+
+  <!-- Image Grid Container -->
+  <div id="imgGridContainer">
+      <!-- Heading will be inserted here by JS -->
+      <div id="imgGrid">
+          <div id="loading-indicator">Loading visualization data...</div>
+      </div>
+  </div>
+  <!--let's create 2 charts. One for loss and one for accuracy. -->
+
+
+
+
+  <!-- <script type="module">
+    import { visualizeRuns } from './userPretrainedNetsExperience.js';
+
+
+  </script> -->
 </body>
 </html>
