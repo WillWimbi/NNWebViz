@@ -20,7 +20,69 @@
         gap:12px;
         }
 
+        /* Model builder styles */
+        .target-area {
+            padding: 8px;
+            min-height: 300px;
+            width: 180px;
+            background-color: #f0f0f0;
+            margin: 0;
+            position: absolute;
+            left: 0;
+            top: 40px;
+        }
+    
+        .block {
+            background-color: lightblue;
+            padding: 6px;
+            margin-bottom: 6px;
+            border-radius: 4px;
+            width: 165px;
+            font-size: 12px;
+        }
+        
+        .block h4 {
+            font-size: 14px;
+            margin-top: 0;
+            margin-bottom: 6px;
+        }
+        
+        .block input {
+            width: 140px;
+            height: 24px;
+            margin-bottom: 3px;
+            box-sizing: border-box;
+            font-size: 12px;
+        }
+        
+        .block select {
+            width: 140px;
+            height: 24px;
+            margin-bottom: 3px;
+            font-size: 12px;
+        }
 
+        /* Performance monitoring */
+        #perfVizArea {
+            position: fixed;
+            right: 20px;
+            top: 10px;
+            width: 500px;
+            height: 200px;
+            text-align: center;
+            z-index: 100;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        #lossGraph {
+            max-height: 190px;
+        }
+
+        /* Visualization styles */
         .layerBlock { 
             width: 100%;  /* Take full width instead of fixed 950px */
             margin: 4px 0;  /* More vertical spacing between blocks */
@@ -57,60 +119,18 @@
         }
 
 
-    .demoCell {
-      text-align: center;
-      font: 14px/1 monospace;
-    }
-    canvas {
-      border: 1px solid #444;
-    }
+        .demoCell {
+            text-align: center;
+            font: 14px/1 monospace;
+        }
+        canvas {
+            border: 1px solid #444;
+        }
         
-        
-                .container {
-        display: flex;
-        gap: 20px;
+        .container {
+            display: flex;
+            gap: 20px;
         }
-    
-        .source-area, .target-area {
-        border: 2px solid black;
-        padding: 20px;
-        min-height: 300px;
-        width: 200px;
-        }
-    
-        /* .box {
-        background-color: lightblue;
-        padding: 10px;
-        margin-bottom: 10px;
-        border-radius: 5px;
-        cursor: grab;
-        } */
-    
-        .block {
-        background-color: lightblue;
-        padding: 10px;
-        margin-bottom: 10px;
-        border-radius: 5px;
-        cursor: grab;
-        position: relative;
-        }
-    
-        .trash-icon {
-        position: absolute;
-        top: 0px;
-        right: 0px;
-        cursor: pointer;
-        font-size: 16px;
-        z-index: 10;
-        }
-    
-        .target-area {
-        background-color: #f0f0f0;
-        }
-    
-        /* .trash-icon {
-            
-        } */
     
         .visualization-container {
             margin: 20px 0;
@@ -119,39 +139,33 @@
             border-radius: 5px;
             background-color: #f8f8f8;
         }
-        
-        .performer {
-            display: inline-block;
-            margin: 5px;
-            padding: 5px;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            text-align: center;
-            background-color: white;
-        }
-        
-        .source-image {
-            margin-bottom: 10px;
-            padding: 5px;
-            border: 1px solid #007bff;
-            border-radius: 3px;
-            display: inline-block;
-        }
-        
-        .similar-images-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-        }
-        
-        .similar-image {
-            padding: 3px;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-        }
     
-
-
+        /* Network visualization container */
+        #netViz {
+            position: absolute;
+            left: 190px;
+            right: 20px;
+            top: 60px;
+            width: calc(100% - 220px) !important;
+            max-width: none !important;
+        }
+        
+        /* Start training button */
+        #startTrainingButton {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        #startTrainingButton:hover {
+            background-color: #45a049;
+        }
         </style>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -165,158 +179,86 @@
 
         
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
-
-
-
-    
-            
         
 <body>
-    <button onclick="window.location.href='pretrainedNets.html'">
-        See Pretrained Nets
-    </button>
-    <div id="demoGrid"></div>
-    <canvas id="canvas" width="300" height="300"></canvas>
-    <div draggable="true" class="layer-component" data-layer-type="dense">Dense Layer</div>
-    <div id="box">GIMME DAT BACON</div>
-    <input type="file" id="fileInput">
-    <div id="perfVizArea" class="container">
+    <button id="startTrainingButton" class="action-button">Start Training</button>
+    
+    <div id="perfVizArea">
         <canvas id="lossGraph"></canvas>
-        <canvas id="accGraph"></canvas>
-    </div>
-    <div id="tinyOutputWindow" style="width: 100%; height: 100px; border: 1px solid #ddd; border-radius: 3px; padding: 5px; overflow-y: auto; background-color: #f9f9f9; position: relative; left: 0;">
-        <p id="outputText">Output will appear here...</p>
     </div>
     
-    <!-- <div class="block" draggable="true" id="blocky1">mOVE 120 STEPS
-        <h1>HI!!!</h1>
-        <input type="text" value="10">
+    <div class="target-area" id="target">
+        <!-- Default model, was meant to be draggable. but changed to not for now.. -->
         
-    </div> -->
-    <div class="container" style="display: flex; gap: 20px;"> <!--irrelevant extras form pedagogy-->
-        <div class="source-area">
-
-            <!-- Dense (Linear) Layer -->
-            <div class="block" draggable="true" id="dense">
-                <h4>Dense (Linear) Layer</h4>
-                Input Channels: <input type="text" placeholder="inputChannels"><br>
-                Output Channels: <input type="text" placeholder="outputChannels">
-            </div>
-        
-            <!-- Conv2D Layer -->
-            <div class="block" draggable="true" id="conv2d">
-                <h4>Conv2D Layer</h4>
-                Kernel Size: <input type="text" placeholder="kernelSize"><br>
-                Filters: <input type="text" placeholder="filters"><br>
-                Strides: <input type="text" placeholder="strides">
-            </div>
-        
-            <!-- MaxPooling2D Layer -->
-            <div class="block" draggable="true" id="maxpool">
-                <h4>MaxPooling Layer</h4>
-                Pool Size: <input type="text" placeholder="poolSize"><br>
-                Strides: <input type="text" placeholder="strides">
-            </div>
-        
-            <!-- ReLU Activation -->
-            <div class="block" draggable="true" id="relu">
-                <h4>ReLU Activation</h4>
-            </div>
-        
-            <!-- Sigmoid Activation -->
-            <div class="block" draggable="true" id="sigmoid">
-                <h4>Sigmoid Activation</h4>
-            </div>
-        
-            <!-- Tanh Activation -->
-            <div class="block" draggable="true" id="tanh">
-                <h4>Tanh Activation</h4>
-            </div>
+        <!-- First Conv2D Layer -->
+        <div class="block" id="conv2d-clone" draggable="true" data-type="conv2d">
+            <h4>Conv2D Layer</h4>
+            Kernel Size: <input type="text" placeholder="kernelSize" value="5"><br>
+            Filters: <input type="text" placeholder="filters" value="8"><br>
+            Strides: <input type="text" placeholder="strides" value="1">
         </div>
         
-        <div class="target-area" id="target">
-            <!-- Default model -->
-            
-            <!-- First Conv2D Layer -->
-            <div class="block" id="conv2d-clone" draggable="true" data-type="conv2d">
-                <div class="trash-icon">🗑️</div>
-                <h4>Conv2D Layer</h4>
-                Kernel Size: <input type="text" placeholder="kernelSize" value="5"><br>
-                Filters: <input type="text" placeholder="filters" value="8"><br>
-                Strides: <input type="text" placeholder="strides" value="1">
-            </div>
-            
-            <!-- ReLU Activation -->
-            <div class="block" id="relu-clone" draggable="true" data-type="relu">
-                <div class="trash-icon">🗑️</div>
-                <h4>ReLU Activation</h4>
-            </div>
-            
-            <!-- First MaxPooling Layer -->
-            <div class="block" id="maxpool-clone" draggable="true" data-type="maxpool">
-                <div class="trash-icon">🗑️</div>
-                <h4>MaxPooling Layer</h4>
-                Pool Size: <input type="text" placeholder="poolSize" value="2"><br>
-                Strides: <input type="text" placeholder="strides" value="2">
-            </div>
-            
-            <!-- Second Conv2D Layer -->
-            <div class="block" id="conv2d-clone2" draggable="true" data-type="conv2d">
-                <div class="trash-icon">🗑️</div>
-                <h4>Conv2D Layer</h4>
-                Kernel Size: <input type="text" placeholder="kernelSize" value="5"><br>
-                Filters: <input type="text" placeholder="filters" value="16"><br>
-                Strides: <input type="text" placeholder="strides" value="1">
-            </div>
-            
-            <!-- Second ReLU Activation -->
-            <div class="block" id="relu-clone2" draggable="true" data-type="relu">
-                <div class="trash-icon">🗑️</div>
-                <h4>ReLU Activation</h4>
-            </div>
-            
-            <!-- Second MaxPooling Layer -->
-            <div class="block" id="maxpool-clone2" draggable="true" data-type="maxpool">
-                <div class="trash-icon">🗑️</div>
-                <h4>MaxPooling Layer</h4>
-                Pool Size: <input type="text" placeholder="poolSize" value="2"><br>
-                Strides: <input type="text" placeholder="strides" value="2">
-            </div>
-            
-            <div class="block" id="flatten-clone" draggable="true" data-type="flatten">
-                <div class="trash-icon">🗑️</div>
-                <h4>Flatten Layer</h4>
-            </div>
+        <!-- ReLU Activation -->
+        <div class="block" id="relu-clone" draggable="true" data-type="relu">
+            <h4>ReLU Activation</h4>
+        </div>
+        
+        <!-- First MaxPooling Layer -->
+        <div class="block" id="maxpool-clone" draggable="true" data-type="maxpool">
+            <h4>MaxPooling Layer</h4>
+            Pool Size: <input type="text" placeholder="poolSize" value="2"><br>
+            Strides: <input type="text" placeholder="strides" value="2">
+        </div>
+        
+        <!-- Second Conv2D Layer -->
+        <div class="block" id="conv2d-clone2" draggable="true" data-type="conv2d">
+            <h4>Conv2D Layer</h4>
+            Kernel Size: <input type="text" placeholder="kernelSize" value="5"><br>
+            Filters: <input type="text" placeholder="filters" value="16"><br>
+            Strides: <input type="text" placeholder="strides" value="1">
+        </div>
+        
+        <!-- Second ReLU Activation -->
+        <div class="block" id="relu-clone2" draggable="true" data-type="relu">
+            <h4>ReLU Activation</h4>
+        </div>
+        
+        <!-- Second MaxPooling Layer -->
+        <div class="block" id="maxpool-clone2" draggable="true" data-type="maxpool">
+            <h4>MaxPooling Layer</h4>
+            Pool Size: <input type="text" placeholder="poolSize" value="2"><br>
+            Strides: <input type="text" placeholder="strides" value="2">
+        </div>
+        
+        <div class="block" id="flatten-clone" draggable="true" data-type="flatten">
+            <h4>Flatten Layer</h4>
+        </div>
 
-            <!-- Dense Layer -->
-            <div class="block" id="dense-clone" draggable="true" data-type="dense">
-                <div class="trash-icon">🗑️</div>
-                <h4>Dense (Linear) Layer</h4>
-                Input Channels: <input type="text" placeholder="inputChannels"><br>
-                Output Channels: <input type="text" placeholder="outputChannels" value="10">
-            </div>
-            
-            
-
-            <!-- Loss block -->
-            <div class="block" id="loss" draggable="true" data-type="loss">
-                <h4>Loss</h4>
-                Optimizer&nbsp;
-                <select data-param="optimizer">
-                    <option value="adam" selected>Adam</option>
-                    <option value="sgd">SGD</option>
-                </select><br>
-                Loss&nbsp;
-                <select data-param="loss">
-                    <option value="softmaxCrossEntropy">softmaxCrossEntropy</option>
-                </select>
-            </div>
+        <!-- Dense Layer -->
+        <div class="block" id="dense-clone" draggable="true" data-type="dense">
+            <h4>Dense (Linear) Layer</h4>
+            Input Channels: <input type="text" placeholder="inputChannels"><br>
+            Output Channels: <input type="text" placeholder="outputChannels" value="10">
+        </div>
+        
+        <!-- Loss block -->
+        <div class="block" id="loss" draggable="true" data-type="loss">
+            <h4>Loss</h4>
+            Optimizer&nbsp;
+            <select data-param="optimizer">
+                <option value="adam" selected>Adam</option>
+                <option value="sgd">SGD</option>
+            </select><br>
+            Loss&nbsp;
+            <select data-param="loss">
+                <option value="softmaxCrossEntropy">softmaxCrossEntropy</option>
+            </select>
         </div>
     </div>
-    <button id="startTrainingButton" class="action-button">Start Training</button>
-    <div class="container" id="netViz" style="display: block; max-width: 1000px; margin: 0 auto;">
+    
+    <div class="container" id="netViz">
         <div class="container" id="layersViz" data-is-loaded="false" style="display: block; width: 100%;">
-            <div>2nd Convolution layer weights are averaged during visualizationfor performance reasons.</div>
+            <div>2nd Convolution layer weights are averaged during visualization for performance reasons.</div>
         </div>
         <div class="container" id="imgPerformance" style="margin-top: 20px;">
             <div class="container" id="bestPerformers">
@@ -326,21 +268,8 @@
                 <!--worst performers-->
             </div>
         </div>
+        <div id="demoGrid"></div>
     </div>
-
-    <!-- Loss and Accuracy Graph Container -->
-    <div class="visualization-container">
-        <h3>Training Performance</h3>
-        <div id="lossAccuracyGraph" style="width: 600px; height: 300px;"></div>
-    </div>
-
-    <!-- <div style="width: 50px; height: 50px; background-color: red;">
-        <div style="position:relative; width:20px;height:20px; top:10px;left:10px; background-color: blue;">
-        
-
-        </div>
-
-    </div> -->
 
     <script src="./userTrainingExperience.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

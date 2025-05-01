@@ -11,6 +11,10 @@ let LR = 0.01;
 
 const builtPanels = new Set();
 
+let seedCanvasArray = [];
+for(let i = 0; i < 50; i++){
+    seedCanvasArray.push(generateRandomSeed());
+}
 
 const itersTilFullTrainingSetUsed = TRAIN_DATA_SIZE / BATCH_SIZE;
 let history = {
@@ -21,7 +25,10 @@ let history = {
     gradients: {},
     gradientShapes: {},
     weights: {},
-    weightShapes: {} 
+    weightShapes: {},
+    imagesPredsHoldingGround: [],
+    userWantsToClassify: false,
+    usersImg: null
     };
 
 //run func
@@ -59,8 +66,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         });
    
-    
-   
     const data = new MnistData();
     await data.load();
 
@@ -70,6 +75,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         trainOnlyLayers(data, modelComponents, optimizer, lossChart); 
     });
 });
+
+// document.getElementById("userClassifyButton").addEventListener("click", () => {
+//     history.userWantsToClassify = true;
+//     history.usersImg = document.getElementById("userImage").src;
+// });
 
 const MNIST_IMAGES_SPRITE_PATH =
     'https://storage.googleapis.com/learnjs-data/model-builder/mnist_images.png';
@@ -186,37 +196,48 @@ class MnistData {
         return { xs, labels };
     }
 }
-
-const blocks = document.querySelectorAll('.block');
-blocks.forEach(function(box) {
-    box.addEventListener('dragstart', function(event) {
-    event.dataTransfer.setData('text/plain', box.id);
-    });
-});
-
-document.getElementById("target").addEventListener("dragover", function(event) {
-    event.preventDefault();
-});
-
-document.getElementById("target").addEventListener('drop', function(event) {
-    let boxId = event.dataTransfer.getData('text/plain');
-    let origBox = document.getElementById(boxId);
-    const newBox = origBox.cloneNode(true);
-    newBox.id = boxId + '-clone';
-    document.getElementById("target").appendChild(newBox);
-    addTrashIconToBlock(newBox);
-});
-
-function addTrashIconToBlock(block) {
-    const trashIcon = document.createElement('div');
-    trashIcon.classList.add('trash-icon');
-    trashIcon.innerHTML = '🗑️';
-    trashIcon.addEventListener('click', function(event) {
-        event.stopPropagation();
-        block.remove();
-    });
-    block.insertBefore(trashIcon, block.firstChild);
+// To generate a random number seed, you can use the following approach:
+function generateRandomSeed() {
+    // Use the current time to generate a seed
+    return Math.floor(Math.random()*Math.random()*Math.random() * Date.now());
 }
+
+
+
+// Example usage:
+const randomSeed = generateRandomSeed();
+console.log("Generated Random Seed:", randomSeed);
+
+// const blocks = document.querySelectorAll('.block');
+// blocks.forEach(function(box) {
+//     box.addEventListener('dragstart', function(event) {
+//     event.dataTransfer.setData('text/plain', box.id);
+//     });
+// });
+
+// document.getElementById("target").addEventListener("dragover", function(event) {
+//     event.preventDefault();
+// });
+
+// document.getElementById("target").addEventListener('drop', function(event) {
+//     let boxId = event.dataTransfer.getData('text/plain');
+//     let origBox = document.getElementById(boxId);
+//     const newBox = origBox.cloneNode(true);
+//     newBox.id = boxId + '-clone';
+//     document.getElementById("target").appendChild(newBox);
+//     addTrashIconToBlock(newBox);
+// });
+
+// function addTrashIconToBlock(block) {
+//     const trashIcon = document.createElement('div');
+//     trashIcon.classList.add('trash-icon');
+//     trashIcon.innerHTML = '🗑️';
+//     trashIcon.addEventListener('click', function(event) {
+//         event.stopPropagation();
+//         block.remove();
+//     });
+//     block.insertBefore(trashIcon, block.firstChild);
+// }
 
 function buildModel() {
     console.log('Building TensorFlow model...');
@@ -632,8 +653,8 @@ function handleLayerVisualizationUpdates(history){
           const ysBatch = trainBatch.labels;
           const xsTestBatch = testBatch.xs.reshape([50, 28, 28, 1]);
           const ysTestBatch = testBatch.labels;
-  
-          
+            // console.log("ysBatch[0] dataSync():", ysBatch.slice([0, 0], [1, ysBatch.shape[1]]).dataSync());
+            // console.log("ysBatch shape:", ysBatch.shape);
 
             if(iter===0){console.log("trainableVars: \n\n\n\n\n\n\n\n\n\n\n\n", trainableVars);}
     
@@ -689,143 +710,122 @@ function handleLayerVisualizationUpdates(history){
         // Now update the chart
         lossChart.update();
   
-          });
-          console.log("n\n\n\n\n\n\n here is the test data: \n\n\n\n\n\n\n\n")
-          const imgs  = xsTestBatch.reshape([50, 28, 28, 1]);
-          let temporaryLossArray = [];
-          //lets do a single forward pass on a single tensor
-          for(let i=0;i<50;i++){
-            
-            const [logits,grads] = (() => {
-                let out = imgs.slice([i, 0, 0, 0], [1, 28, 28, 1]);
+            });
+            console.log("n\n\n\n\n\n\n here is the test data: \n\n\n\n\n\n\n\n")
+            const imgs = xsTestBatch;
+            let temporaryLossArray = [];
+            //lets do a single forward pass on a single tensor
+            for(let i=0;i<50;i++){
                 
-                  const {value,grads} = tf.variableGrads(() => {
-                  for (const l of layers) {
-                    out = l.apply(out);
-                    if(i===0){
-                        //log activations if first iteration of batch.
-                        if (!history.activations[l.name]) {
-                            history.activations[l.name] = [];
-                        }
-                        history.activations[l.name]=out.dataSync();
-                        history.activationShapes[l.name] = out.shape;
-                    }
-                    }
-                      tf.keep(out);
-                    //record passes just for first one
-                  return lossFn(ysTestBatch.slice([i, 0], [1, NUM_CLASSES]), out);},trainableVars);
-                  
-                  //export gradMap in a similar way to snapshot
-                  //then simply export weights as well
-                  
-                //console.log("out is unquestionably here: ", out);
-                temporaryLossArray=value.dataSync();
-                return [out,grads];
-              })(); //});
-            //   for(const gradkey of Object.keys(grads)){
-            //     console.log("gradkey: ", gradkey);
-            //   }
-            //   const gradMap = {};
-            //   console.log("grads: ", grads["conv2d_Conv2D1/kernel"].shape);
-            //     console.log("grads[0]: ", grads[0]);
-                //   for (const v of trueLayerNames) gradMap[v.name] = grads[v.name];
-                  //here we need gradmap to store ALL the layers, therefore we can't jut rely
-                  //on the 'trainableVars' because that won't include relu activations etc.
-                  //therefore we need to use the original layer names. 
-                //   console.log("gradMap[0]: ", Object.values(gradMap)[0]);
-                //   console.log("quick test:", Object.values(gradMap)[0].dataSync());                  //update weights and gradients if first iteration of batch.
-                  const layersLength = layers.length;
-                  let iterator = 0;
-                  if(i===0){
-                
-                    // //update gradients for each layer:
-                    // for(const layer of layers){
-                    //     if (!history.gradients[layer.name]) {
-                    //         history.gradients[layer.name] = [];
-                            
-                    //     }
-                    //     history.gradients[layer.name].push(gradMap[layer.name]);
-                    //     console.log("Layer name:", layer.name);
-                    //     console.log("Gradient map keys:", Object.keys(gradMap));
-                    //     console.log(layer.name,"layer.name");
-
-                    //     history.gradientShapes[layer.name] = gradMap[layer.name].shape;
-                    // }
-                    //new
-                    for(const trw of trainableVars){
-
-                        let currentName = trw.name;
-                        let newName;
-                        console.log("currentName: ", currentName, " and iterator value: ", iterator);
-                        console.log("trainableVars[iterator].name: ", trainableVars[iterator].name);
-                        if((currentName.includes("conv2d")&&!currentName.includes("bias"))){
-                            newName = trw.name;
-                            
-                            if (!history.weights[newName]) {
-                                history.weights[newName] = [];
-                                history.weightShapes[newName] = trw.shape;
-                            }
-                            if(!history.gradients[newName]){
-                                history.gradients[newName] = [];
-                                console.log("logging  of grads[newName]: ", grads[trw.name]);
-                                history.gradientShapes[newName] = grads[trw.name].shape;
-                            }
-                            try{
-                                history.weights[newName]=(trw.dataSync());
-                                history.gradients[newName]=(grads[trw.name].dataSync());
-                                console.log("\n\n\n\ iterator success!: ", iterator, " and newName: ", newName);
-                                console.log("trw.dataSync(): ", trw.dataSync());
-                                console.log("trw.shape: ", trw.shape);
-                            }
-                            catch(e){
-                                console.log("error in weights: ", e);
-                            }
-                            iterator++;
-                        }
-                        else if((currentName.includes("dense")&&!currentName.includes("bias"))){
-                            newName = trw.name;
-                            if (!history.weights[newName]) {
-                                history.weights[newName] = [];
-                                history.weightShapes[newName] = trw.shape;
-                            }
-                            if(!history.gradients[newName]){
-                                history.gradients[newName] = [];
-                                history.gradientShapes[newName] = grads[trw.name].shape;
-                            }
-                            try{
-                                history.weights[newName]=(trw.dataSync());
-                                history.gradients[newName]=(grads[trw.name].dataSync());
-                                console.log("\n\n\n\ iterator success!: ", iterator, " and newName: ", newName);
-                                console.log("trw.dataSync(): ", trw.dataSync());
-                                console.log("trw.shape: ", trw.shape);
-                            }
-                            catch(e){
-                                console.log("error in weights: ", e);
-                            }
-                            iterator++;
-                        }
-
-                        
-                    }
+                const [loss,grads] = (() => {
+                    let out = imgs.slice([i, 0, 0, 0], [1, 28, 28, 1]);
                     
-                    // for (const v of trainableVars)
-                    // for(const weightArr of trainableVars){
-                        
+                    const {value,grads} = tf.variableGrads(() => {
+                    for (const l of layers) {
+                        out = l.apply(out);
+                        if(i===0){
+                            //log activations if first iteration of batch.
+                            if (!history.activations[l.name]) {
+                                history.activations[l.name] = [];
+                            }
+                            history.activations[l.name]=out.dataSync();
+                            history.activationShapes[l.name] = out.shape;
+                        }
+                        }
+                        history.imagesPredsHoldingGround[i]=out.dataSync();
+                        console.log("out.dataSync(): ", out.dataSync());
+                        tf.keep(out);
+                        //record passes just for first one
+                    return lossFn(ysTestBatch.slice([i, 0], [1, NUM_CLASSES]), out);},trainableVars);
+                    
+                    //export gradMap in a similar way to snapshot
+                    //then simply export weights as well
+                    
+                    //console.log("out is unquestionably here: ", out);
+                    temporaryLossArray=value.dataSync();
+                    return [out,grads];
+                })(); //});
+                //lets log a user digit classification:
+                //if(userWantsToClassify){}.........
+                //update weights and gradients if first iteration of batch.
+                    const layersLength = layers.length;
+                    let iterator = 0;
+                    if(i===0){
 
-                    // }
-                  }
-            // console.log("logits: ", logits);
-            const preds = await logits.softmax().data(); //.argMax(-1)
-            // console.log("preds:",preds);
-            // console.log("actual label:",ysTestBatch.slice([i, 0], [1, NUM_CLASSES]).argMax(-1).dataSync()[0]);
-            // console.log("actual backward pass:");
-            let averageValLoss = temporaryLossArray.reduce((acc, curr) => acc + curr/50, 0);
-            history.vallosses.push(averageValLoss);
-            // document.getElementById('outputText').textContent = JSON.stringify(history);
-            // console.log("history.activations: ", history.activations);
-            
-            // console.log(ys)
-          }
+                        for(const trw of trainableVars){
+
+                            let currentName = trw.name;
+                            let newName;
+                            console.log("currentName: ", currentName, " and iterator value: ", iterator);
+                            console.log("trainableVars[iterator].name: ", trainableVars[iterator].name);
+                            if((currentName.includes("conv2d")&&!currentName.includes("bias"))){
+                                newName = trw.name;
+                                
+                                if (!history.weights[newName]) {
+                                    history.weights[newName] = [];
+                                    history.weightShapes[newName] = trw.shape;
+                                }
+                                if(!history.gradients[newName]){
+                                    history.gradients[newName] = [];
+                                    console.log("logging  of grads[newName]: ", grads[trw.name]);
+                                    history.gradientShapes[newName] = grads[trw.name].shape;
+                                }
+                                try{
+                                    history.weights[newName]=(trw.dataSync());
+                                    history.gradients[newName]=(grads[trw.name].dataSync());
+                                    console.log("\n\n\n\ iterator success!: ", iterator, " and newName: ", newName);
+                                    console.log("trw.dataSync(): ", trw.dataSync());
+                                    console.log("trw.shape: ", trw.shape);
+                                }
+                                catch(e){
+                                    console.log("error in weights: ", e);
+                                }
+                                iterator++;
+                            }
+                            else if((currentName.includes("dense")&&!currentName.includes("bias"))){
+                                newName = trw.name;
+                                if (!history.weights[newName]) {
+                                    history.weights[newName] = [];
+                                    history.weightShapes[newName] = trw.shape;
+                                }
+                                if(!history.gradients[newName]){
+                                    history.gradients[newName] = [];
+                                    history.gradientShapes[newName] = grads[trw.name].shape;
+                                }
+                                try{
+                                    history.weights[newName]=(trw.dataSync());
+                                    history.gradients[newName]=(grads[trw.name].dataSync());
+                                    console.log("\n\n\n\ iterator success!: ", iterator, " and newName: ", newName);
+                                    console.log("trw.dataSync(): ", trw.dataSync());
+                                    console.log("trw.shape: ", trw.shape);
+                                }
+                                catch(e){
+                                    console.log("error in weights: ", e);
+                                }
+                                iterator++;
+                            }
+
+                        }
+                        //showPredictions(imgs, history.imagesPredsHoldingGround, ysTestBatch);
+                    }
+                // console.log("logits: ", logits);
+                // const preds = await logits.softmax().data(); //.argMax(-1)
+                // console.log("preds:",preds);
+                // console.log("actual label:",ysTestBatch.slice([i, 0], [1, NUM_CLASSES]).argMax(-1).dataSync()[0]);
+                // console.log("actual backward pass:");
+                let averageValLoss = temporaryLossArray.reduce((acc, curr) => acc + curr/50, 0);
+                history.vallosses.push(averageValLoss);
+                if(i===0){
+                    // console.log("ysTestbatch.arraySync(): ", ysTestBatch.arraySync());
+                    // const ysTestBatchClone = ysTestBatch.arraySync();
+                    await showPredictions(imgs, ysTestBatch);
+                    //testing train
+                    // await showPredictions(xsBatch.slice([0, 0, 0, 0], [50, 28, 28, 1]), ysBatch.slice([0, 0], [50, 10]));
+                }
+                // document.getElementById('outputText').textContent = JSON.stringify(history);
+                
+                // console.log(ys)
+            }
 
           handleLayerVisualizationUpdates(history);
           console.log("\n\n\n\n\n\n");
@@ -833,7 +833,7 @@ function handleLayerVisualizationUpdates(history){
           iter++;
     
           tf.dispose([xsBatch, ysBatch]);
-          console.log("right before it!!",iter);if(iter===90){console.log("HEYAA\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");await showPredictions(data,layers);  // call once training is done
+          console.log("right before it!!",iter);if(iter===90){console.log("HEYAA\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");  // call once training is done
             console.log('TRAINING DONE.');}
         }
         
@@ -852,48 +852,95 @@ function handleLayerVisualizationUpdates(history){
       /***** AFTER training *****/
       /***** AFTER training *****/
       /***** AFTER training *****/
-    async function showPredictions(data, layers) {
-        const BATCH = 25;
-        const {xs}  = data.nextTestBatch(BATCH);
-        const imgs  = xs.reshape([BATCH, 28, 28, 1]);
+    async function showPredictions(imgs, labels) {
+        const preddies = history.imagesPredsHoldingGround;
+        console.log("preddies[0]: ", preddies[0]);
+        const imagesPredsTensor = tf.stack(preddies.map(pred => tf.tensor(pred, [1, NUM_CLASSES])));
+        // imagesPredsHoldingGround = imagesPredsTensor;
+        // const BATCH = 50;
+        // const {xs}  = data.nextTestBatch(BATCH);
+        // const imgs  = xs.reshape([BATCH, 28, 28, 1]);
+        
+        console.log("===== RUNNING SHOW PREDICTIONS =====");
 
-        /* ---------- forward pass ---------- */
-        const logits = tf.tidy(() => {
-        let out = imgs;
-        for (const l of layers) out = l.apply(out);
-        return out;
-        });
-        const preds = await logits.softmax().argMax(-1).data();
-        logits.dispose();
+        // /* ---------- forward pass ---------- */
+        // const logits = tf.tidy(() => {
+        //     let out = imgs;
+        //     for (const l of layers) out = l.apply(out);
+        //     return out;
+        // });
+
+        
+
+        const preddios = await imagesPredsTensor.softmax().argMax(-1).data();
+        console.log("truthios[0] before argmax: ", labels.slice([0, 0], [1, 10]).dataSync());
+        const truthios = await labels.argMax(-1).data();
+        console.log("truthios[0] after argmax: ", truthios[0]);
+        for (let i = 0; i < 50; i++) {
+            console.log(`Prediction for index ${i}: ${preddios[i]}`);
+            console.log(`Truth for index ${i}: ${truthios[i]}`);
+        }
+        // console.log("truthios[0]: ", truthios[0]);
+        // logits.dispose();
 
         /* ---------- render ---------- */
         const grid = document.getElementById('demoGrid');
-        grid.innerHTML = '';
+        grid.innerHTML = ''; // Clear the grid
 
         const imgTensors = tf.unstack(imgs);              // <-- create first
         console.log('imgTensors len =', imgTensors.length); // now it's defined
 
         await Promise.all(
         imgTensors.map(async (t, i) => {
-            const canvas = document.createElement('canvas');
-            canvas.width = canvas.height = 28;
-            await tf.browser.toPixels(t.squeeze(), canvas);
-            t.dispose();
+            let canvas;
+            // grid.childElementCount>50?canvas=grid.getElementById(String(seedCanvasArray[i])):canvas = document.createElement('canvas');
+            let cell;
+            let predLabel;
+            let trueLabel;
+            if(grid.childElementCount<50){
+                let seed = seedCanvasArray[i];
+                canvas=document.createElement('canvas');
+                canvas.id = seed;
+                canvas.width = canvas.height = 28;
+                await tf.browser.toPixels(t.squeeze(), canvas);
+                t.dispose();
+                cell  = document.createElement('div');
+                cell.className = 'demoCell';
+                predLabel = document.createElement('div');
+                predLabel.id='predLabel';
+                trueLabel = document.createElement('div');
+                trueLabel.id='trueLabel';
+                cell.appendChild(canvas);
+                cell.appendChild(predLabel);
+                cell.appendChild(trueLabel);
 
-            const cell  = document.createElement('div');
-            cell.className = 'demoCell';
-            cell.appendChild(canvas);
+                grid.appendChild(cell);
+                // console.log("canvas:all is GOING well", canvas);
+            
+            }
+            else{
+                canvas = document.getElementById(String(seedCanvasArray[i]));
+                // console.log("canvas: ", canvas.id);
+                canvas.width = canvas.height = 28;
+                await tf.browser.toPixels(t.squeeze(), canvas);
+                t.dispose();
+                cell = canvas.parentElement;
+                predLabel = cell.querySelector('#predLabel'); //predLabel should be only div in cell
+                trueLabel = cell.querySelector('#trueLabel'); //trueLabel should be only div in cell
+            }
 
-            const label = document.createElement('div');
-            label.textContent = `pred: ${preds[i]}`;
-            cell.appendChild(label);
+            
+            // cell.appendChild(canvas);
 
-            grid.appendChild(cell);
+            // predLabel = document.createElement('div');
+            predLabel.textContent = `pred: ${preddios[i]}`;
+            // console.log("truthios[i]: ", truthios[i]);
+            trueLabel.textContent = `true: ${truthios[i]}`;
         })
         );
 
-        console.log('children in grid =', grid.childElementCount); // should print 25
-        xs.dispose(); imgs.dispose();
+        console.log('children in grid =', grid.childElementCount); // should print 50
+        imagesPredsTensor.dispose(); 
         await tf.nextFrame();}
     }
   
