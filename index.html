@@ -20,6 +20,14 @@
         gap:12px;
         }
 
+        /* Demo cells and confidence bars */
+        .demoCell      { width: 60px; height: 92px; overflow:hidden; }
+        .demoCell canvas{ display:block; margin:0 auto 2px; }
+        .bar           { position:relative; width:60px; height:10px; margin:2px 0; }
+        .fill          { position:absolute; left:0; top:0; width:100%; height:100%; transform-origin:left; }
+        .bar span      { position:absolute; left:4px; top:50%; transform:translateY(-50%);
+                        font:10px monospace; color:#fff; pointer-events:none; }
+
         /* Model builder styles */
         .target-area {
             padding: 8px;
@@ -182,7 +190,10 @@
         
 <body>
     <button id="startTrainingButton" class="action-button">Start Training</button>
-    
+    <canvas id="userImage" width="280" height="280" style="position: absolute; top: 500px; right: 500px;"></canvas>
+    <button id="userClassifyButton" class="action-button" style="position: absolute; top: 300px; right: 100px;">Classify</button>
+    <button id="clearBtn" class="action-button" style="position: absolute; top: 300px; right: 100px;">Clear</button>
+
     <div id="perfVizArea">
         <canvas id="lossGraph"></canvas>
     </div>
