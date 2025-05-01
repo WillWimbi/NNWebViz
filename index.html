@@ -21,10 +21,40 @@
         }
 
 
-        .layerBlock { width:950px;margin:8px 0;padding:6px;border:1px solid #ccc;}
-    .sectionLabel{font:bold 12px monospace;margin:4px 0;}
-    .canvasGrid  {display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:4px;}
-    .canvasGrid canvas{image-rendering:pixelated;}
+        .layerBlock { 
+            width: 100%;  /* Take full width instead of fixed 950px */
+            margin: 4px 0;  /* More vertical spacing between blocks */
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 8px;  /* Rounded corners for better visual separation */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);  /* Subtle shadow for depth */
+        }
+        
+        .sectionLabel {
+            font: bold 14px monospace;  /* Slightly larger font */
+            margin: 2px 0;
+            padding: 4px;
+            background-color: #f0f0f0;  /* Background to separate sections */
+            border-radius: 4px;
+        }
+        
+        .canvasGrid {
+            display: flex;  /* Changed from grid to flex */
+            flex-wrap: wrap;
+            gap: 0;
+            margin-bottom: 4px;
+            padding: 0;
+            background-color: #fafafa;
+            border-radius: 4px;
+        }
+        
+        .canvasGrid canvas {
+            image-rendering: pixelated;
+            border: none;
+            margin: 0;  /* Ensure no margins */
+            padding: 0;  /* Ensure no padding */
+            display: block;  /* Prevent inline display spacing */
+        }
 
 
     .demoCell {
@@ -284,15 +314,15 @@
         </div>
     </div>
     <button id="startTrainingButton" class="action-button">Start Training</button>
-    <div class="container" id="netViz" >
-        <div class = "container" id="layersViz" data-is-loaded="false">
-            
+    <div class="container" id="netViz" style="display: block; max-width: 1000px; margin: 0 auto;">
+        <div class="container" id="layersViz" data-is-loaded="false" style="display: block; width: 100%;">
+            <div>2nd Convolution layer weights are averaged during visualizationfor performance reasons.</div>
         </div>
-        <div class="container" id="imgPerformance">
-            <div class="container" id = "bestPerformers">
+        <div class="container" id="imgPerformance" style="margin-top: 20px;">
+            <div class="container" id="bestPerformers">
                 <!--best performers-->
             </div>
-            <div class="container" id = "worstPerformers">
+            <div class="container" id="worstPerformers">
                 <!--worst performers-->
             </div>
         </div>

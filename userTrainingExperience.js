@@ -9,7 +9,7 @@ const NUM_TEST_ELEMENTS = NUM_DATASET_ELEMENTS - NUM_TRAIN_ELEMENTS;
 let EPOCH_AMOUNT = 1;
 let LR = 0.01;
 
-
+const builtPanels = new Set();
 
 
 const itersTilFullTrainingSetUsed = TRAIN_DATA_SIZE / BATCH_SIZE;
@@ -400,6 +400,7 @@ function buildModel() {
   
 /* ───────── visual-helpers.js ───────── */
 function addLayerPanel(id, parent){
+    if (builtPanels.has(id)) return;    // do it only once
     const block = document.createElement('div');
     block.className = 'layerBlock';
     block.innerHTML = `
@@ -408,29 +409,62 @@ function addLayerPanel(id, parent){
       <div class="sectionLabel">Gradients:</div>   <div class="canvasGrid" id="${id}-grads"></div>
       <div class="sectionLabel">Weights:</div>     <div class="canvasGrid" id="${id}-wts"></div>`;
     parent.appendChild(block);
+    builtPanels.add(id);
   }
   
-async function renderKind(flat, shape, grid){
-    let t = tf.tensor(flat, shape).squeeze();    // remove batch
+  async function renderKind(flat, shape, grid){
+    let t = tf.tensor(flat, shape).squeeze();      // remove batch
     let slices = [];
-
-    if (t.rank === 3){                            // [H,W,C]
-        const [H,W,C] = t.shape;
-        for (let c=0;c<C;c++) slices.push(
-        t.slice([0,0,c],[H,W,1]).squeeze());
-    } else if (t.rank === 2){
-        slices=[t];
+  
+    /* ------------ rank-aware slicing ------------ */
+    /* ------------ rank-aware slicing ------------ */
+    if (t.rank === 4){                       // [H, W, Cin, Cout]
+        const [H,W,Cin,Cout] = t.shape;
+    
+        for (let o = 0; o < Cout; o++){
+        // Take the full [H,W,Cin] kernel for this output channel
+        let k = t.slice([0,0,0,o], [H,W,Cin,1]).squeeze();  // [H,W,Cin]
+    
+        // Collapse Cin>1 by averaging → [H,W]
+        if (Cin > 1) k = k.mean(2);                         // mean over Cin axis
+    
+        slices.push(k);     // we’ll get exactly Cout = 16 tiles, not 128
+        }
     }
-    grid.innerHTML='';
-    for (const s of slices){
-        const c=document.createElement('canvas');
-        c.width=s.shape[1]; c.height=s.shape[0];
-        const vis=s.sub(s.min()).div(s.max().sub(s.min()).add(1e-6));
-        await tf.browser.toPixels(vis,c);
-        grid.appendChild(c); s.dispose(); vis.dispose();
+   else if (t.rank === 3){                       // [H,W,C]
+      const [H,W,C] = t.shape;
+      for (let c = 0; c < C; c++)
+        slices.push(t.slice([0,0,c],[H,W,1]).squeeze());
+    } else if (t.rank === 2){                       // [H,W]
+      slices = [t];
+      const m = t.shape[0] > t.shape[1] ? t.transpose() : t;   // [W,H]
+      slices = [m];
+    } else if (t.rank === 1){                       // [N]  (flatten)
+      const N = t.shape[0], dim = Math.ceil(Math.sqrt(N));
+      slices = [t.pad([[0, dim*dim - N]]).reshape([dim, dim])];
+    }
+  
+    /* ------------ make / trim canvases ------------ */
+    while (grid.children.length < slices.length)
+      grid.appendChild(document.createElement('canvas'));
+    while (grid.children.length > slices.length)
+      grid.lastChild.remove();
+  
+    /* ------------ draw ------------ */
+    for (let i = 0; i < slices.length; i++){
+      const c = grid.children[i];
+      const s = slices[i];
+      if (c.width !== s.shape[1] || c.height !== s.shape[0]){
+        c.width  = s.shape[1];
+        c.height = s.shape[0];
+      }
+      const vis = s.sub(s.min()).div(s.max().sub(s.min()).add(1e-6));
+      await tf.browser.toPixels(vis, c);
+      s.dispose(); vis.dispose();
     }
     t.dispose();
-    }
+  }
+  
   
 
   
@@ -459,112 +493,79 @@ function getArrayShape(arr) {
 
 
 
-function handleLayerVisualizationUpdates(history) {
-    let layerViz = document.getElementById('layersViz');
-    
-    // Always run, remove conditional
-    console.log("IS RUNNING!");
-    console.log("=== Activation Shapes ===");
-    for (const [layerName, shape] of Object.entries(history.activationShapes)) {
-        console.log(`${layerName}: ${JSON.stringify(shape)}`);
-    }
-    
-    console.log("=== Gradient Shapes ===");
-    for (const [layerName, shape] of Object.entries(history.gradientShapes)) {
-        console.log(`${layerName}: ${JSON.stringify(shape)}`);
-    }
-    
-    console.log("=== Weight Shapes ===");
-    for (const [layerName, shape] of Object.entries(history.weightShapes)) {
-        console.log(`${layerName}: ${JSON.stringify(shape)}`);
-    }
-    
-    for (const [layerId, activations] of Object.entries(history.activations)) {
-        console.log(`Layer ID: ${layerId}`);
-    }
-
-    for (const [layerId, gradients] of Object.entries(history.gradients)) {
-        console.log(`Gradient ID: ${layerId}`);
-    }
-
-    for (const [layerId, weights] of Object.entries(history.weights)) {
-        console.log(`Weight ID: ${layerId}`);
-    }
-
+function handleLayerVisualizationUpdates(history){
     const layersViz = document.getElementById('layersViz');
-        layersViz.innerHTML = '';               // wipe previous run
-        for (const lname of Object.keys(history.activationShapes)){
-            addLayerPanel(lname, layersViz);
-            console.log("added layer panel: ", lname);
-        }
-
-    for(const [layerName, activation] of Object.entries(history.activations)){
-        renderKind(activation, history.activationShapes[layerName], document.getElementById(`${layerName}-acts`));
-
-    }
-    for(const [layerName, gradient] of Object.entries(history.gradients)){
-        renderKind(gradient, history.gradientShapes[layerName], document.getElementById(`${layerName}-grads`));
-    }
-    for(const [layerName, weight] of Object.entries(history.weights)){
-        renderKind(weight, history.weightShapes[layerName], document.getElementById(`${layerName}-wts`));
-    }
-
-
-
-    // if(layerViz.data-is-loaded === "false"){
-    //     console.log("IS RUNING!");
-    //     const canvas = document.createElement('canvas');
-    //     canvas.width = width;
-    //     canvas.height = height;
-    //     const ctx = canvas.getContext('2d');
-    //     const imageData = ctx.createImageData(width, height);
-    //     // check input shapes:
-    //     //should be layer containers
-    //     for(const layer of layerViz.children){
-    //         //go into viewing area grids:
-    //         let activationContainer = layer.querySelector('#actGrid1');
-    //         let gradientContainer = layer.querySelector('#gradGrid1');
-    //         let weightContainer = layer.querySelector('#weightGrid1');
-    //             //should be canvas grids.
-    //             //3 for loops, this one for weights.
-                
-
-
-    //             for(const act of activations){
-    //                 let canvas = document.createElement('canvas');
-    //                 if(layer.id.includes("conv2d")){}
-    //                 //.....
-    //                 tf.browser.toPixels(act, canvas);
-    //             }
-    //             for(const weight of weights){
-    //                 let canvas = document.createElement('canvas');
-    //                 //.....
-
-    //             }
-    //             for(const grad of grads){
-    //                 let canvas = document.createElement('canvas');
-    //                 //.....
-    //             }
-
-    //     }
-    //     layerViz.dataset.isLoaded = "true";
-
-
-
-    //might reset the thing:
-    history = {
-        losses: [],
-        vallosses: [],
-        activations: {},
-        activationShapes: {},
-        gradients: {},
-        gradientShapes: {},
-        weights: {},
-        weightShapes: {} 
-    };
-
+  
+    /* --------- create missing panels once --------- */
+    for (const lname of Object.keys(history.activationShapes))
+      addLayerPanel(lname, layersViz);
+    console.log('Built panels for:', Array.from(builtPanels));
+    console.log('Weight keys:', Object.keys(history.weights));
+    console.log('Gradient keys:', Object.keys(history.gradients));
     
-}
+    /* --------- activations --------- */
+    for (const [lname, act] of Object.entries(history.activations)){
+      renderKind(act,
+                 history.activationShapes[lname],
+                 document.getElementById(`${lname}-acts`));
+    }
+  
+    /* --------- gradients --------- */
+    for (const lname of Object.keys(history.activationShapes)) {
+      const gradGrid = document.getElementById(`${lname}-grads`);
+      if (gradGrid) {
+        // Find the section label (previous element with class "sectionLabel")
+        const gradSectionLabel = gradGrid.previousElementSibling;
+        
+        // Check if any gradients belong to this layer
+        const hasGradients = Object.keys(history.gradients).some(pname => pname.split('/')[0] === lname);
+        
+        // Show/hide gradients section based on content
+        gradGrid.style.display = hasGradients ? '' : 'none';
+        if (gradSectionLabel && gradSectionLabel.classList.contains('sectionLabel')) {
+          gradSectionLabel.style.display = hasGradients ? '' : 'none';
+        }
+        
+        if (hasGradients) {
+          // Only render if we have gradients for this layer
+          for (const [pname, g] of Object.entries(history.gradients)) {
+            const base = pname.split('/')[0];
+            if (base === lname) {
+              renderKind(g, history.gradientShapes[pname], gradGrid);
+            }
+          }
+        }
+      }
+    }
+  
+    /* --------- weights --------- */
+    for (const lname of Object.keys(history.activationShapes)) {
+      const weightGrid = document.getElementById(`${lname}-wts`);
+      if (weightGrid) {
+        // Find the section label (previous element with class "sectionLabel")
+        const weightSectionLabel = weightGrid.previousElementSibling;
+        
+        // Check if any weights belong to this layer
+        const hasWeights = Object.keys(history.weights).some(pname => pname.split('/')[0] === lname);
+        
+        // Show/hide weights section based on content
+        weightGrid.style.display = hasWeights ? '' : 'none';
+        if (weightSectionLabel && weightSectionLabel.classList.contains('sectionLabel')) {
+          weightSectionLabel.style.display = hasWeights ? '' : 'none';
+        }
+        
+        if (hasWeights) {
+          // Only render if we have weights for this layer
+          for (const [pname, w] of Object.entries(history.weights)) {
+            const base = pname.split('/')[0];
+            if (base === lname) {
+              renderKind(w, history.weightShapes[pname], weightGrid);
+            }
+          }
+        }
+      }
+    }
+  }
 
 
   async function trainOnlyLayers(data,modelComponents,optimizer, lossChart) {
@@ -721,12 +722,12 @@ function handleLayerVisualizationUpdates(history) {
                 temporaryLossArray=value.dataSync();
                 return [out,grads];
               })(); //});
-              for(const gradkey of Object.keys(grads)){
-                console.log("gradkey: ", gradkey);
-              }
+            //   for(const gradkey of Object.keys(grads)){
+            //     console.log("gradkey: ", gradkey);
+            //   }
             //   const gradMap = {};
-              console.log("grads: ", grads["conv2d_Conv2D1/kernel"].shape);
-                console.log("grads[0]: ", grads[0]);
+            //   console.log("grads: ", grads["conv2d_Conv2D1/kernel"].shape);
+            //     console.log("grads[0]: ", grads[0]);
                 //   for (const v of trueLayerNames) gradMap[v.name] = grads[v.name];
                   //here we need gradmap to store ALL the layers, therefore we can't jut rely
                   //on the 'trainableVars' because that won't include relu activations etc.
@@ -822,9 +823,11 @@ function handleLayerVisualizationUpdates(history) {
             history.vallosses.push(averageValLoss);
             // document.getElementById('outputText').textContent = JSON.stringify(history);
             // console.log("history.activations: ", history.activations);
-            handleLayerVisualizationUpdates(history);
+            
             // console.log(ys)
           }
+
+          handleLayerVisualizationUpdates(history);
           console.log("\n\n\n\n\n\n");
           //console.log("history: ", history);
           iter++;
