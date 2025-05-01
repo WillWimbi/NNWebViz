@@ -396,40 +396,44 @@ function buildModel() {
     }
     return [modelArr, optimizer];
 }
-//not finished yet.
-function buildVizLayers(modelArr){
-    let layersViz = document.getElementById('layersViz');
-    let inputLayerImage = document.createElement('div');
-    inputLayerImage.innerHTML = `
-    <div class="layerBlock">
-        <div class="layerMeta">Input Layer</div>
-        <div class="canvasGrid" id="actGrid1">Gradients</div>
-    </div>`;
-    layersViz.appendChild(inputLayerImage);
-    for(const layer of modelArr){
-        const layerBlock = document.createElement('div');
-        layerBlock.innerHTML =`
-        <div class="layerBlock">
-            <div class="layerMeta">${layer.id}</div>
-            
-            <div class="sectionRow">
-                <div class="sectionLabel">Activations:</div>
-                <div class="canvasGrid" id="actGrid1"></div>
-            </div>
 
-            <div class="sectionRow">
-                <div class="sectionLabel">Gradients:</div>
-                <div class="canvasGrid" id="gradGrid1"></div>
-            </div>
+  
+/* ───────── visual-helpers.js ───────── */
+function addLayerPanel(id, parent){
+    const block = document.createElement('div');
+    block.className = 'layerBlock';
+    block.innerHTML = `
+      <div class="sectionLabel">${id}</div>
+      <div class="sectionLabel">Activations:</div><div class="canvasGrid" id="${id}-acts"></div>
+      <div class="sectionLabel">Gradients:</div>   <div class="canvasGrid" id="${id}-grads"></div>
+      <div class="sectionLabel">Weights:</div>     <div class="canvasGrid" id="${id}-wts"></div>`;
+    parent.appendChild(block);
+  }
+  
+async function renderKind(flat, shape, grid){
+    let t = tf.tensor(flat, shape).squeeze();    // remove batch
+    let slices = [];
 
-            <div class="sectionRow">
-                <div class="sectionLabel">Weights:</div>
-                <div class="canvasGrid" id="weightGrid1"></div>
-            </div>
-        </div>`;
-        layersViz.appendChild(layerBlock);
+    if (t.rank === 3){                            // [H,W,C]
+        const [H,W,C] = t.shape;
+        for (let c=0;c<C;c++) slices.push(
+        t.slice([0,0,c],[H,W,1]).squeeze());
+    } else if (t.rank === 2){
+        slices=[t];
     }
-}
+    grid.innerHTML='';
+    for (const s of slices){
+        const c=document.createElement('canvas');
+        c.width=s.shape[1]; c.height=s.shape[0];
+        const vis=s.sub(s.min()).div(s.max().sub(s.min()).add(1e-6));
+        await tf.browser.toPixels(vis,c);
+        grid.appendChild(c); s.dispose(); vis.dispose();
+    }
+    t.dispose();
+    }
+  
+
+  
 function getArrayShape(arr) {
     const shape = [];
     let current = arr;
@@ -439,56 +443,127 @@ function getArrayShape(arr) {
     }
     return shape;
 }
-function handleLayerVisualizationUpdates(activations,grads,weights,weightShapes,activationShapes,gradientShapes){
+
+// drawConvMaps(tensor, canvas, b=0)
+
+
+// if(layerName === "conv2d"){
+//     newShape = shape.slice(1);
+//     const [h,w,c] = newShape;
+//     for(let i = 0){
+
+
+//     }
+// }
+
+
+
+
+function handleLayerVisualizationUpdates(history) {
     let layerViz = document.getElementById('layersViz');
-    if(layerViz.dataset.isLoaded === "false"){
-        // const canvas = document.createElement('canvas');
-        // canvas.width = width;
-        // canvas.height = height;
-        // const ctx = canvas.getContext('2d');
-        // const imageData = ctx.createImageData(width, height);
-        //check input shapes:
-        console.log("activation shapes");
-        for (const [layerName, arrList] of Object.entries(activations)) {
-            console.log("layer shape: ", activationShapes[layerName]);
+    
+    // Always run, remove conditional
+    console.log("IS RUNNING!");
+    console.log("=== Activation Shapes ===");
+    for (const [layerName, shape] of Object.entries(history.activationShapes)) {
+        console.log(`${layerName}: ${JSON.stringify(shape)}`);
+    }
+    
+    console.log("=== Gradient Shapes ===");
+    for (const [layerName, shape] of Object.entries(history.gradientShapes)) {
+        console.log(`${layerName}: ${JSON.stringify(shape)}`);
+    }
+    
+    console.log("=== Weight Shapes ===");
+    for (const [layerName, shape] of Object.entries(history.weightShapes)) {
+        console.log(`${layerName}: ${JSON.stringify(shape)}`);
+    }
+    
+    for (const [layerId, activations] of Object.entries(history.activations)) {
+        console.log(`Layer ID: ${layerId}`);
+    }
+
+    for (const [layerId, gradients] of Object.entries(history.gradients)) {
+        console.log(`Gradient ID: ${layerId}`);
+    }
+
+    for (const [layerId, weights] of Object.entries(history.weights)) {
+        console.log(`Weight ID: ${layerId}`);
+    }
+
+    const layersViz = document.getElementById('layersViz');
+        layersViz.innerHTML = '';               // wipe previous run
+        for (const lname of Object.keys(history.activationShapes)){
+            addLayerPanel(lname, layersViz);
+            console.log("added layer panel: ", lname);
         }
-        console.log("grad shapes");
-        for(const [layerName, arrList] of Object.entries(grads)){
-            console.log("layer shape: ", gradientShapes[layerName]);
-        }
-        console.log("weight shapes");
-        for(const [layerName, arrList] of Object.entries(weights)){
-            console.log("layer shape: ", weightShapes[layerName]);
-        }
-        // //should be layer containers
-        // for(const layer of layerViz.children){
-        //     //go into viewing area grids:
-        //     let activationContainer = layer.querySelector('#actGrid1');
-        //     let gradientContainer = layer.querySelector('#gradGrid1');
-        //     let weightContainer = layer.querySelector('#weightGrid1');
-        //         //should be canvas grids.
-        //         //3 for loops, this one for weights.
+
+    for(const [layerName, activation] of Object.entries(history.activations)){
+        renderKind(activation, history.activationShapes[layerName], document.getElementById(`${layerName}-acts`));
+
+    }
+    for(const [layerName, gradient] of Object.entries(history.gradients)){
+        renderKind(gradient, history.gradientShapes[layerName], document.getElementById(`${layerName}-grads`));
+    }
+    for(const [layerName, weight] of Object.entries(history.weights)){
+        renderKind(weight, history.weightShapes[layerName], document.getElementById(`${layerName}-wts`));
+    }
+
+
+
+    // if(layerViz.data-is-loaded === "false"){
+    //     console.log("IS RUNING!");
+    //     const canvas = document.createElement('canvas');
+    //     canvas.width = width;
+    //     canvas.height = height;
+    //     const ctx = canvas.getContext('2d');
+    //     const imageData = ctx.createImageData(width, height);
+    //     // check input shapes:
+    //     //should be layer containers
+    //     for(const layer of layerViz.children){
+    //         //go into viewing area grids:
+    //         let activationContainer = layer.querySelector('#actGrid1');
+    //         let gradientContainer = layer.querySelector('#gradGrid1');
+    //         let weightContainer = layer.querySelector('#weightGrid1');
+    //             //should be canvas grids.
+    //             //3 for loops, this one for weights.
                 
 
 
-        //         for(const act of activations){
-        //             let canvas = document.createElement('canvas');
-        //             //.....
-        //             tf.browser.toPixels(act, canvas);
-        //         }
-        //         for(const weight of weights){
-        //             let canvas = document.createElement('canvas');
-        //             //.....
+    //             for(const act of activations){
+    //                 let canvas = document.createElement('canvas');
+    //                 if(layer.id.includes("conv2d")){}
+    //                 //.....
+    //                 tf.browser.toPixels(act, canvas);
+    //             }
+    //             for(const weight of weights){
+    //                 let canvas = document.createElement('canvas');
+    //                 //.....
 
-        //         }
-        //         for(const grad of grads){
-        //             let canvas = document.createElement('canvas');
-        //             //.....
-        //         }
+    //             }
+    //             for(const grad of grads){
+    //                 let canvas = document.createElement('canvas');
+    //                 //.....
+    //             }
 
-        // }
-        layerViz.dataset.isLoaded = "true";
-    }
+    //     }
+    //     layerViz.dataset.isLoaded = "true";
+
+
+
+    //might reset the thing:
+    history = {
+        losses: [],
+        vallosses: [],
+        activations: {},
+        activationShapes: {},
+        gradients: {},
+        gradientShapes: {},
+        weights: {},
+        weightShapes: {} 
+    };
+
+    
 }
 
 
@@ -510,9 +585,13 @@ function handleLayerVisualizationUpdates(activations,grads,weights,weightShapes,
           }
       }
       let layers = modelArr.map(part => part.layer);
+      let trueLayerNames = [];
       for(const layer of layers){
         console.log("layer initial test!: ", layer.name, layer.batchInputShape);
+        trueLayerNames.push(layer.name);
       }
+      
+      
       dummy.dispose(); // clean up dummy tensor
     //   for (const [i, layer] of modelArr.entries()) {
     //     console.log(`Layer ${i} - Type: ${layer.layer?.getClassName?.() || 'Unknown'}`);
@@ -627,7 +706,7 @@ function handleLayerVisualizationUpdates(activations,grads,weights,weightShapes,
                         if (!history.activations[l.name]) {
                             history.activations[l.name] = [];
                         }
-                        history.activations[l.name].push(out.dataSync());
+                        history.activations[l.name]=out.dataSync();
                         history.activationShapes[l.name] = out.shape;
                     }
                     }
@@ -638,26 +717,39 @@ function handleLayerVisualizationUpdates(activations,grads,weights,weightShapes,
                   //export gradMap in a similar way to snapshot
                   //then simply export weights as well
                   
-                console.log("out is unquestionably here: ", out);
-                temporaryLossArray.push(value.dataSync());
+                //console.log("out is unquestionably here: ", out);
+                temporaryLossArray=value.dataSync();
                 return [out,grads];
               })(); //});
-              const gradMap = {};
-                  for (const v of trainableVars) gradMap[v.name] = grads[v.name];
-                  //update weights and gradients if first iteration of batch.
+              for(const gradkey of Object.keys(grads)){
+                console.log("gradkey: ", gradkey);
+              }
+            //   const gradMap = {};
+              console.log("grads: ", grads["conv2d_Conv2D1/kernel"].shape);
+                console.log("grads[0]: ", grads[0]);
+                //   for (const v of trueLayerNames) gradMap[v.name] = grads[v.name];
+                  //here we need gradmap to store ALL the layers, therefore we can't jut rely
+                  //on the 'trainableVars' because that won't include relu activations etc.
+                  //therefore we need to use the original layer names. 
+                //   console.log("gradMap[0]: ", Object.values(gradMap)[0]);
+                //   console.log("quick test:", Object.values(gradMap)[0].dataSync());                  //update weights and gradients if first iteration of batch.
                   const layersLength = layers.length;
                   let iterator = 0;
                   if(i===0){
                 
-                    //update gradients for each layer:
-                    for(const layer of layers){
-                        if (!history.gradients[layer.name]) {
-                            history.gradients[layer.name] = [];
+                    // //update gradients for each layer:
+                    // for(const layer of layers){
+                    //     if (!history.gradients[layer.name]) {
+                    //         history.gradients[layer.name] = [];
                             
-                        }
-                        history.gradients[layer.name].push(gradMap[layer.name]);
-                        history.gradientShapes[layer.name] = gradMap[layer.name].shape;
-                    }
+                    //     }
+                    //     history.gradients[layer.name].push(gradMap[layer.name]);
+                    //     console.log("Layer name:", layer.name);
+                    //     console.log("Gradient map keys:", Object.keys(gradMap));
+                    //     console.log(layer.name,"layer.name");
+
+                    //     history.gradientShapes[layer.name] = gradMap[layer.name].shape;
+                    // }
                     //new
                     for(const trw of trainableVars){
 
@@ -665,14 +757,21 @@ function handleLayerVisualizationUpdates(activations,grads,weights,weightShapes,
                         let newName;
                         console.log("currentName: ", currentName, " and iterator value: ", iterator);
                         console.log("trainableVars[iterator].name: ", trainableVars[iterator].name);
-                        if(currentName.includes("conv2d")&&currentName.includes("kernel")){
-                            newName = "conv2d";
+                        if((currentName.includes("conv2d")&&!currentName.includes("bias"))){
+                            newName = trw.name;
+                            
                             if (!history.weights[newName]) {
                                 history.weights[newName] = [];
                                 history.weightShapes[newName] = trw.shape;
                             }
+                            if(!history.gradients[newName]){
+                                history.gradients[newName] = [];
+                                console.log("logging  of grads[newName]: ", grads[trw.name]);
+                                history.gradientShapes[newName] = grads[trw.name].shape;
+                            }
                             try{
-                                history.weights[newName].push(trw.dataSync());
+                                history.weights[newName]=(trw.dataSync());
+                                history.gradients[newName]=(grads[trw.name].dataSync());
                                 console.log("\n\n\n\ iterator success!: ", iterator, " and newName: ", newName);
                                 console.log("trw.dataSync(): ", trw.dataSync());
                                 console.log("trw.shape: ", trw.shape);
@@ -682,14 +781,19 @@ function handleLayerVisualizationUpdates(activations,grads,weights,weightShapes,
                             }
                             iterator++;
                         }
-                        else if(currentName.includes("dense")&&currentName.includes("kernel")){
-                            newName = "dense";
+                        else if((currentName.includes("dense")&&!currentName.includes("bias"))){
+                            newName = trw.name;
                             if (!history.weights[newName]) {
                                 history.weights[newName] = [];
                                 history.weightShapes[newName] = trw.shape;
                             }
+                            if(!history.gradients[newName]){
+                                history.gradients[newName] = [];
+                                history.gradientShapes[newName] = grads[trw.name].shape;
+                            }
                             try{
-                                history.weights[newName].push(trw.dataSync());
+                                history.weights[newName]=(trw.dataSync());
+                                history.gradients[newName]=(grads[trw.name].dataSync());
                                 console.log("\n\n\n\ iterator success!: ", iterator, " and newName: ", newName);
                                 console.log("trw.dataSync(): ", trw.dataSync());
                                 console.log("trw.shape: ", trw.shape);
@@ -709,16 +813,16 @@ function handleLayerVisualizationUpdates(activations,grads,weights,weightShapes,
 
                     // }
                   }
-            console.log("logits: ", logits);
+            // console.log("logits: ", logits);
             const preds = await logits.softmax().data(); //.argMax(-1)
-            console.log("preds:",preds);
-            console.log("actual label:",ysTestBatch.slice([i, 0], [1, NUM_CLASSES]).argMax(-1).dataSync()[0]);
-            console.log("actual backward pass:");
+            // console.log("preds:",preds);
+            // console.log("actual label:",ysTestBatch.slice([i, 0], [1, NUM_CLASSES]).argMax(-1).dataSync()[0]);
+            // console.log("actual backward pass:");
             let averageValLoss = temporaryLossArray.reduce((acc, curr) => acc + curr/50, 0);
             history.vallosses.push(averageValLoss);
             // document.getElementById('outputText').textContent = JSON.stringify(history);
             // console.log("history.activations: ", history.activations);
-            handleLayerVisualizationUpdates(history.activations,history.gradients,history.weights,history.weightShapes);
+            handleLayerVisualizationUpdates(history);
             // console.log(ys)
           }
           console.log("\n\n\n\n\n\n");
@@ -726,7 +830,7 @@ function handleLayerVisualizationUpdates(activations,grads,weights,weightShapes,
           iter++;
     
           tf.dispose([xsBatch, ysBatch]);
-          console.log("right before it!!",iter);if(iter===90){console.log("HEYAA\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");await showPredictions(data);  // call once training is done
+          console.log("right before it!!",iter);if(iter===90){console.log("HEYAA\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");await showPredictions(data,layers);  // call once training is done
             console.log('TRAINING DONE.');}
         }
         
@@ -745,7 +849,7 @@ function handleLayerVisualizationUpdates(activations,grads,weights,weightShapes,
       /***** AFTER training *****/
       /***** AFTER training *****/
       /***** AFTER training *****/
-    async function showPredictions(data) {
+    async function showPredictions(data, layers) {
         const BATCH = 25;
         const {xs}  = data.nextTestBatch(BATCH);
         const imgs  = xs.reshape([BATCH, 28, 28, 1]);

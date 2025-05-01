@@ -1,0 +1,21 @@
+<!-- pretrained-models.html -->
+<html>
+<head>
+  <script type="module" src="userPretrainedNetsExperience.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <canvas id="metricsChart"></canvas>
+  <div id="imgGrid"></div>
+  <div>HELLO JUST STATIC</div>
+  <script type="module">
+    import { visualizeRuns } from "/js/userPretrainedNetsExperience.js";
+    fetch('/api/runs')  // <-- dynamic call starts here
+      .then(res => res.json())
+      .then(data => {
+        const imgSrc = idx => `/mnist/${idx}.png`;
+        visualizeRuns(data, imgSrc);
+      });
+  </script>
+</body>
+</html>
