@@ -28,7 +28,8 @@ let history = {
     weightShapes: {},
     imagesPredsHoldingGround: [],
     userWantsToClassify: false,
-    usersImg: null
+    usersImg: null,
+    batchPreds: []
     };
 
 //run func
@@ -390,21 +391,8 @@ function buildModel() {
                 currentTestGradients: [],
                 currentTestWeights: []
             });
-            // console.log("flatten layer added to modelArr");
         }
         //TF.js doesn't offer standalone crossEntropyLayer, maybe we'll add softmax viz later.
-        // else if(child.dataset.type === "softmax"){
-        //     modelArr.push({
-        //         id: "softmax",
-        //         layer: tf.layers.activation({ activation: 'softmax' }),
-        //         info: {
-        //             activation: 'softmax'
-        //         },
-        //         currentTestActivations: [],
-        //         currentTestGradients: [],
-        //         currentTestWeights: []
-        //     });
-        // }
         else if (child.dataset.type === "loss") {
             const selects = child.querySelectorAll('select');
             const optimizerName = selects[0].value;
@@ -485,10 +473,7 @@ function addLayerPanel(id, parent){
     }
     t.dispose();
   }
-  
-  
-
-  
+ 
 function getArrayShape(arr) {
     const shape = [];
     let current = arr;
@@ -498,21 +483,6 @@ function getArrayShape(arr) {
     }
     return shape;
 }
-
-// drawConvMaps(tensor, canvas, b=0)
-
-
-// if(layerName === "conv2d"){
-//     newShape = shape.slice(1);
-//     const [h,w,c] = newShape;
-//     for(let i = 0){
-
-
-//     }
-// }
-
-
-
 
 function handleLayerVisualizationUpdates(history){
     const layersViz = document.getElementById('layersViz');
@@ -713,8 +683,10 @@ function handleLayerVisualizationUpdates(history){
             });
             console.log("n\n\n\n\n\n\n here is the test data: \n\n\n\n\n\n\n\n")
             const imgs = xsTestBatch;
-            let temporaryLossArray = [];
+            let temporaryLoss = 0;
             //lets do a single forward pass on a single tensor
+            console.log('before loop, length =', history.imagesPredsHoldingGround.length);
+
             for(let i=0;i<50;i++){
                 
                 const [loss,grads] = (() => {
@@ -732,7 +704,9 @@ function handleLayerVisualizationUpdates(history){
                             history.activationShapes[l.name] = out.shape;
                         }
                         }
-                        history.imagesPredsHoldingGround[i]=out.dataSync();
+                        //history.imagesPredsHoldingGround[i]=out.dataSync();
+                        const safeLogits = Float32Array.from(out.dataSync());   // <-- new memory
+                        history.batchPreds[i]  = safeLogits; 
                         console.log("out.dataSync(): ", out.dataSync());
                         tf.keep(out);
                         //record passes just for first one
@@ -742,7 +716,7 @@ function handleLayerVisualizationUpdates(history){
                     //then simply export weights as well
                     
                     //console.log("out is unquestionably here: ", out);
-                    temporaryLossArray=value.dataSync();
+                    temporaryLoss+=value.dataSync()/50;
                     return [out,grads];
                 })(); //});
                 //lets log a user digit classification:
@@ -813,9 +787,9 @@ function handleLayerVisualizationUpdates(history){
                 // console.log("preds:",preds);
                 // console.log("actual label:",ysTestBatch.slice([i, 0], [1, NUM_CLASSES]).argMax(-1).dataSync()[0]);
                 // console.log("actual backward pass:");
-                let averageValLoss = temporaryLossArray.reduce((acc, curr) => acc + curr/50, 0);
+                let averageValLoss = temporaryLoss;
                 history.vallosses.push(averageValLoss);
-                if(i===0){
+                if(i===49){
                     // console.log("ysTestbatch.arraySync(): ", ysTestBatch.arraySync());
                     // const ysTestBatchClone = ysTestBatch.arraySync();
                     await showPredictions(imgs, ysTestBatch);
@@ -826,6 +800,7 @@ function handleLayerVisualizationUpdates(history){
                 
                 // console.log(ys)
             }
+            console.log('after loop, length  =', history.imagesPredsHoldingGround.length);
 
           handleLayerVisualizationUpdates(history);
           console.log("\n\n\n\n\n\n");
@@ -852,142 +827,87 @@ function handleLayerVisualizationUpdates(history){
       /***** AFTER training *****/
       /***** AFTER training *****/
       /***** AFTER training *****/
-    async function showPredictions(imgs, labels) {
-        const preddies = history.imagesPredsHoldingGround;
-        console.log("preddies[0]: ", preddies[0]);
-        const imagesPredsTensor = tf.stack(preddies.map(pred => tf.tensor(pred, [1, NUM_CLASSES])));
-        // imagesPredsHoldingGround = imagesPredsTensor;
-        // const BATCH = 50;
-        // const {xs}  = data.nextTestBatch(BATCH);
-        // const imgs  = xs.reshape([BATCH, 28, 28, 1]);
-        
-        console.log("===== RUNNING SHOW PREDICTIONS =====");
-
-        // /* ---------- forward pass ---------- */
-        // const logits = tf.tidy(() => {
-        //     let out = imgs;
-        //     for (const l of layers) out = l.apply(out);
-        //     return out;
-        // });
-
-        
-
-        const preddios = await imagesPredsTensor.softmax().argMax(-1).data();
-        console.log("truthios[0] before argmax: ", labels.slice([0, 0], [1, 10]).dataSync());
-        const truthios = await labels.argMax(-1).data();
-        console.log("truthios[0] after argmax: ", truthios[0]);
+      async function showPredictions(imgs, labels) {
+        /* ---------- tensors to JS ---------- */
+        const logits   = tf.tensor(history.batchPreds, [50, NUM_CLASSES]);
+        const probs    = logits.softmax();                 // [50,10]
+        const predIds  = await probs.argMax(-1).data();    // Int32[50]
+        const truthIds = await labels.argMax(-1).data();   // Int32[50]
+      
+        const probBuf  = probs.dataSync();                 // Float32[500]
+        const top3  = [];                                  // [{value,index}] × 50
         for (let i = 0; i < 50; i++) {
-            console.log(`Prediction for index ${i}: ${preddios[i]}`);
-            console.log(`Truth for index ${i}: ${truthios[i]}`);
+          const slice = Array.from(probBuf.slice(i*NUM_CLASSES, (i+1)*NUM_CLASSES))
+            .map((v, idx) => ({ value: v, index: idx }))
+            .sort((a,b) => b.value - a.value)
+            .slice(0,3);
+          top3.push(slice);
         }
-        // console.log("truthios[0]: ", truthios[0]);
-        // logits.dispose();
-
-        /* ---------- render ---------- */
+      
+        /* ---------- render grid ---------- */
         const grid = document.getElementById('demoGrid');
-        grid.innerHTML = ''; // Clear the grid
-
-        const imgTensors = tf.unstack(imgs);              // <-- create first
-        console.log('imgTensors len =', imgTensors.length); // now it's defined
-
+        grid.innerHTML = '';                               // reset once per call
+      
+        const imgTensors = tf.unstack(imgs);
         await Promise.all(
-        imgTensors.map(async (t, i) => {
-            let canvas;
-            // grid.childElementCount>50?canvas=grid.getElementById(String(seedCanvasArray[i])):canvas = document.createElement('canvas');
-            let cell;
-            let predLabel;
-            let trueLabel;
-            if(grid.childElementCount<50){
-                let seed = seedCanvasArray[i];
-                canvas=document.createElement('canvas');
-                canvas.id = seed;
-                canvas.width = canvas.height = 28;
-                await tf.browser.toPixels(t.squeeze(), canvas);
-                t.dispose();
-                cell  = document.createElement('div');
-                cell.className = 'demoCell';
-                predLabel = document.createElement('div');
-                predLabel.id='predLabel';
-                trueLabel = document.createElement('div');
-                trueLabel.id='trueLabel';
-                cell.appendChild(canvas);
-                cell.appendChild(predLabel);
-                cell.appendChild(trueLabel);
-
-                grid.appendChild(cell);
-                // console.log("canvas:all is GOING well", canvas);
-            
+          imgTensors.map(async (t, i) => {
+            /* -- pick (or create) canvas exactly like your code -- */
+            let canvas, cell, predLabel, trueLabel, container;
+            if (grid.childElementCount < 50) {
+              const seed = seedCanvasArray[i];
+              canvas           = document.createElement('canvas');
+              canvas.id        = seed;
+              canvas.width = canvas.height = 28;
+              await tf.browser.toPixels(t.squeeze(), canvas);
+              t.dispose();
+      
+              cell             = document.createElement('div');
+              cell.className   = 'demoCell';
+              predLabel        = document.createElement('div');
+              predLabel.id     = 'predLabel';
+              trueLabel        = document.createElement('div');
+              trueLabel.id     = 'trueLabel';
+              container        = document.createElement('div');
+              container.id     = 'confidenceBars';
+      
+              /* -- build the three bars -- */
+              top3[i].forEach(conf => {
+                const bar = document.createElement('div');
+                bar.style.height = '10px';
+                bar.style.margin = '2px 0';
+                bar.style.width  = '100px';
+                /* width stays fixed; scaleX uses probability */
+                bar.style.transform = `scaleX(${conf.value})`;
+                bar.style.transformOrigin = 'left';
+                /* green if correct class, otherwise red */
+                bar.style.backgroundColor =
+                  conf.index === truthIds[i] ? 'limegreen' : 'crimson';
+                /* optional tooltip */
+                bar.title = `digit ${conf.index} : ${conf.value.toFixed(2)}`;
+                container.appendChild(bar);
+              });
+      
+              cell.append(canvas, predLabel, trueLabel, container);
+              grid.appendChild(cell);
+            } else {
+              /* reuse existing elements exactly as before */
+              canvas    = document.getElementById(String(seedCanvasArray[i]));
+              canvas.width = canvas.height = 28;
+              await tf.browser.toPixels(t.squeeze(), canvas);
+              t.dispose();
+              cell      = canvas.parentElement;
+              predLabel = cell.querySelector('#predLabel');
+              trueLabel = cell.querySelector('#trueLabel');
+              /* bars were created on first pass – nothing else to update */
             }
-            else{
-                canvas = document.getElementById(String(seedCanvasArray[i]));
-                // console.log("canvas: ", canvas.id);
-                canvas.width = canvas.height = 28;
-                await tf.browser.toPixels(t.squeeze(), canvas);
-                t.dispose();
-                cell = canvas.parentElement;
-                predLabel = cell.querySelector('#predLabel'); //predLabel should be only div in cell
-                trueLabel = cell.querySelector('#trueLabel'); //trueLabel should be only div in cell
-            }
-
-            
-            // cell.appendChild(canvas);
-
-            // predLabel = document.createElement('div');
-            predLabel.textContent = `pred: ${preddios[i]}`;
-            // console.log("truthios[i]: ", truthios[i]);
-            trueLabel.textContent = `true: ${truthios[i]}`;
-        })
+      
+            predLabel.textContent  = `pred:  ${predIds[i]}`;
+            trueLabel.textContent  = `true:  ${truthIds[i]}`;
+          })
         );
-
-        console.log('children in grid =', grid.childElementCount); // should print 50
-        imagesPredsTensor.dispose(); 
-        await tf.nextFrame();}
-    }
+      
+        logits.dispose(); probs.dispose();
+        await tf.nextFrame();
+      }
+    }      
   
-// function updateWeightViz() {
-// }
-
-// function updateGradsViz(layerIndex, gradientTensors) {
-//     const container = document.getElementById(`grads-${layerIndex}`);
-//     container.innerHTML = '';
-//     gradientTensors.forEach(tensor => {
-//         const canvas = document.createElement('canvas');
-//         tf.browser.toPixels(tensor.squeeze().clipByValue(0, 1), canvas);
-//         container.appendChild(canvas);
-//     });
-// }
-
-// function updateActivationsViz(layerIndex, activationTensor) {
-//     const container = document.getElementById(`activations-${layerIndex}`);
-//     container.innerHTML = '';
-//     if (activationTensor.shape.length > 2) {
-//         const slices = activationTensor.split(activationTensor.shape[-1], -1);
-//         slices.forEach(slice => {
-//             const canvas = document.createElement('canvas');
-//             tf.browser.toPixels(slice.squeeze().clipByValue(0, 1), canvas);
-//             container.appendChild(canvas);
-//         });
-//     } else {
-//         const canvas = document.createElement('canvas');
-//         tf.browser.toPixels(activationTensor.squeeze().clipByValue(0, 1), canvas);
-//         container.appendChild(canvas);
-//     }
-// }
-
-// function updatePredsViz() {
-// }
-
-// function createWeightsViz(modelLayers) {
-//     const vizContainer = document.getElementById('netViz');
-//     vizContainer.innerHTML = '';
-//     for (let i = 0; i < modelLayers.length; i++) {
-//         const layerDiv = document.createElement('div');
-//         layerDiv.id = `layer-viz-${i}`;
-//         layerDiv.innerHTML = `<h4>Layer ${i}: ${modelLayers[i].getClassName()}</h4>
-//                               <div id="weights-${i}"></div>
-//                               <div id="activations-${i}"></div>
-//                               <div id="grads-${i}"></div>`;
-//         vizContainer.appendChild(layerDiv);
-//     }
-// }
-
