@@ -1,4 +1,4 @@
-This is a neural network trainer and visualizer for the MNIST dataset.
+This is a neural network trainer/viewer that uses the MNIST dataset to achieve its visualization purposes. It is also an observation of statistical ensemble performance and variance in pretrained neural networks.
 
 The site can be found at [wimbiscus.com](https://wimbiscus.com)
 
