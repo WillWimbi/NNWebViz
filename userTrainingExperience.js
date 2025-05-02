@@ -6,7 +6,7 @@ const NUM_CLASSES = 10;
 const NUM_DATASET_ELEMENTS = 65000;
 const NUM_TRAIN_ELEMENTS = 55000;
 const NUM_TEST_ELEMENTS = NUM_DATASET_ELEMENTS - NUM_TRAIN_ELEMENTS;
-let EPOCH_AMOUNT = 1;
+let EPOCH_AMOUNT = 10000; //train forever  by default lol
 let USER_CONST = 0.001;
 
 const builtPanels = new Set();
@@ -194,6 +194,7 @@ class MnistData {
     }
 }
 function generateRandomSeed() {
+    // Use the current time to generate a seed
     return Math.floor(Math.random()*Math.random()*Math.random() * Date.now());
 }
 
@@ -348,10 +349,12 @@ function buildModel() {
                 currentTestWeights: []
             });
         }
+        //TF.js doesn't offer standalone crossEntropyLayer, maybe we'll add softmax viz later.
         else if (child.dataset.type === "loss") {
             const selects = child.querySelectorAll('select');
             const optimizerName = selects[0].value;
             
+            // Set learning rate for TensorFlow optimizer based on user input
             const lrInput = child.querySelector('input[placeholder="learning rate"]');
             const learningRate = lrInput ? parseFloat(lrInput.value) || 0.001 : 0.001;
             optimizer = {
@@ -450,10 +453,10 @@ function handleLayerVisualizationUpdates(history){
     for (const lname of Object.keys(history.activationShapes)) {
       const gradGrid = document.getElementById(`${lname}-grads`);
       if (gradGrid) {
+        // Find the section label (previous element with class "sectionLabel")
         const gradSectionLabel = gradGrid.previousElementSibling;
         
         const hasGradients = Object.keys(history.gradients).some(pname => pname.split('/')[0] === lname);
-        
         gradGrid.style.display = hasGradients ? '' : 'none';
         if (gradSectionLabel && gradSectionLabel.classList.contains('sectionLabel')) {
           gradSectionLabel.style.display = hasGradients ? '' : 'none';
@@ -473,10 +476,9 @@ function handleLayerVisualizationUpdates(history){
     for (const lname of Object.keys(history.activationShapes)) {
       const weightGrid = document.getElementById(`${lname}-wts`);
       if (weightGrid) {
-        const weightSectionLabel = weightGrid.previousElementSibling;
-        
+        // Find the section label (previous element with class "sectionLabel")
+        const weightSectionLabel = weightGrid.previousElementSibling;      
         const hasWeights = Object.keys(history.weights).some(pname => pname.split('/')[0] === lname);
-        
         weightGrid.style.display = hasWeights ? '' : 'none';
         if (weightSectionLabel && weightSectionLabel.classList.contains('sectionLabel')) {
           weightSectionLabel.style.display = hasWeights ? '' : 'none';
@@ -493,8 +495,6 @@ function handleLayerVisualizationUpdates(history){
       }
     }
   }
-
-
   async function trainOnlyLayers(data,modelComponents,optimizer, lossChart) {
       optimizer.learningRate = USER_CONST;
       let modelArr = modelComponents;
@@ -565,20 +565,15 @@ function handleLayerVisualizationUpdates(history){
             const gradMap = {};
             for (const v of trainableVars) gradMap[v.name] = grads[v.name];
             optimizer.applyGradients(gradMap);
-  
-            
         const loss = value.dataSync()[0];        
         history.losses.push(loss);
-  
             });
             const imgs = xsTestBatch;
             let temporaryLoss = 0;
-
             for(let i=0;i<50;i++){
                 
                 const [loss,grads] = (() => {
                     let out = imgs.slice([i, 0, 0, 0], [1, 28, 28, 1]);
-                    
                     const {value,grads} = tf.variableGrads(() => {
                     for (const l of layers) {
                         out = l.apply(out);
@@ -601,9 +596,7 @@ function handleLayerVisualizationUpdates(history){
                     const layersLength = layers.length;
                     let iterator = 0;
                     if(i===0){
-
                         for(const trw of trainableVars){
-
                             let currentName = trw.name;
                             let newName;
                             if((currentName.includes("conv2d")&&!currentName.includes("bias"))){

@@ -3,10 +3,44 @@
 <head>
   <title>Pretrained Models Visualization</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@1.0.2/dist/tfjs-vis.umd.min.js"></script>
+
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script type="module" src="./userPretrainedNetsExperience.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
+    body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f4f4; }
     h1, h3 { text-align: center; color: #333; }
+    #metricsRow {
+        width: 100%;
+        max-width: 1700px;
+        margin: 0 auto 20px auto;
+        display: flex;
+        justify-content: center;
+        gap: 24px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        padding-top: 20px;
+    }
+    .chart-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 400px;
+    }
+    .chart-label {
+        text-align: center;
+        font-size: 1em;
+        margin-top: 4px;
+        color: #222;
+        font-weight: bold;
+    }
+    canvas {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
     #metricsChartContainer {
         width: 80%;
         max-width: 900px;
@@ -18,8 +52,9 @@
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     #imgGridContainer {
-        width: 90%;
-        max-width: 800px;
+        width: 100%;
+        max-width: 1000px;
+        height: auto;
         margin: 30px auto;
         background-color: #fff;
         padding: 20px;
@@ -60,28 +95,36 @@
 </head>
 <body>
   <h1>MNIST Pretrained Model Performance</h1>
-
-  <!-- Chart Container -->
-  <div id="metricsChartContainer">
-      <canvas id="metricsChart"></canvas>
+  <a href="https://wimbiscus.com" id="backToMainPage" style="display:inline-block; padding:6px 16px; background:#007bff; color:#fff; border-radius:4px; text-decoration:none; font-size:1em;">Back To Main Page</a>
+  <h3>
+    Training was performed using the Adam optimizer for 3 epochs, with a batch size of 512 on the standard MNIST dataset (consisting of 55,000 training and 10,000 test images).<br>
+    For each test image, the predictions from 50 independently trained, identical networks were averaged to produce the 10 bars shown beneath each image—each bar representing the average predicted probability for one digit class.<br>
+    The images are sorted from hardest to easiest (based on the average confidence in the correct class), allowing you to observe which digits consistently challenge the models and to explore the variability in network predictions across the ensemble.
+  </h3>
+  <div id="metricsRow">
+    <div class="chart-container">
+      <canvas id="lossChart"     width="400" height="200"></canvas>
+      <div class="chart-label">Training Loss</div>
+    </div>
+    <div class="chart-container">
+      <canvas id="valLossChart"  width="400" height="200"></canvas>
+      <div class="chart-label">Validation Loss</div>
+    </div>
+    <div class="chart-container">
+      <canvas id="accChart"      width="400" height="200"></canvas>
+      <div class="chart-label">Training Accuracy</div>
+    </div>
+    <div class="chart-container">
+      <canvas id="valAccChart"   width="400" height="200"></canvas>
+      <div class="chart-label">Validation Accuracy</div>
+    </div>
   </div>
 
-  <!-- Image Grid Container -->
   <div id="imgGridContainer">
-      <!-- Heading will be inserted here by JS -->
       <div id="imgGrid">
           <div id="loading-indicator">Loading visualization data...</div>
       </div>
   </div>
-  <!--let's create 2 charts. One for loss and one for accuracy. -->
 
-
-
-
-  <!-- <script type="module">
-    import { visualizeRuns } from './userPretrainedNetsExperience.js';
-
-
-  </script> -->
 </body>
 </html>

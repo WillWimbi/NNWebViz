@@ -20,7 +20,6 @@
         gap:12px;
         }
 
-        /* Demo cells and confidence bars */
         .demoCell      { width: 60px; height: 92px; overflow:hidden; }
         .demoCell canvas{ display:block; margin:0 auto 2px; }
         .bar           { position:relative; width:60px; height:10px; margin:2px 0; }
@@ -28,7 +27,6 @@
         .bar span      { position:absolute; left:4px; top:50%; transform:translateY(-50%);
                         font:10px monospace; color:#fff; pointer-events:none; }
 
-        /* Model builder styles */
         .target-area {
             padding: 8px;
             min-height: 300px;
@@ -70,7 +68,6 @@
             font-size: 12px;
         }
 
-        /* Performance monitoring */
         #perfVizArea {
             position: fixed;
             right: 20px;
@@ -92,26 +89,25 @@
             
         }
 
-        /* Visualization styles */
         .layerBlock { 
-            width: 100%;  /* Take full width instead of fixed 950px */
-            margin: 4px 0;  /* More vertical spacing between blocks */
+            width: 100%;
+            margin: 4px 0;
             padding: 5px;
             border: 1px solid #ccc;
-            border-radius: 8px;  /* Rounded corners for better visual separation */
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);  /* Subtle shadow for depth */
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         .sectionLabel {
-            font: bold 14px monospace;  /* Slightly larger font */
+            font: bold 14px monospace;  
             margin: 2px 0;
             padding: 4px;
-            background-color: #f0f0f0;  /* Background to separate sections */
+            background-color: #f0f0f0;  
             border-radius: 4px;
         }
         
         .canvasGrid {
-            display: flex;  /* Changed from grid to flex */
+            display: flex;  
             flex-wrap: wrap;
             gap: 0;
             margin-bottom: 4px;
@@ -123,12 +119,11 @@
         .canvasGrid canvas {
             image-rendering: pixelated;
             border: none;
-            margin: 0;  /* Ensure no margins */
-            padding: 0;  /* Ensure no padding */
-            display: block;  /* Prevent inline display spacing */
+            margin: 0;  
+            padding: 0;  
+            display: block;  /
             /* background-color: #aee5ec; */
         }
-
 
         .demoCell {
             text-align: center;
@@ -163,45 +158,52 @@
             margin-left: auto;
             margin-right: auto;
             position: relative;
-            /* background-color: #aee5ec; */
         }
 
         .layerBlocks-container{
             width: 190px;
-            /* background-color: #dcedf0; */
 
         }
         /*activations, weights, gradients (AWG)*/
         .layerAWG-container{
             width:600px;
-            /* background-color: #aee5ec; */
         }
 
         .samplesAndGraphs-container{
             width:810px;
-            /* background-color: #aee5ec; */
         }
 
         #main-title {
             text-align: center;
             font-family: 'Roboto', Arial, sans-serif;
-            /* font-size: 2.2rem; */
             font-weight: 600;
-            /* 
-               margin: 24px 0 16px 0;
-               This sets the margin for the #main-title element.
-               The four values correspond to: 
-                 - Top:    24px
-                 - Right:  0
-                 - Bottom: 16px
-                 - Left:   0
-               (Order: top, right, bottom, left)
-               Note: 'rem' is a CSS unit meaning "root em", which is relative to the root element's font size. 
-               In this case, 'px' (pixels) is used instead of 'rem'.
-            */
+
             margin: 35px 0 44px 0;
             letter-spacing: 0.5px;
             color: #333;
+        }
+
+        .action-button {
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .action-button:hover {
+            background-color: #3b78e7;
+            transform: translateY(-1px);
+        }
+
+        .action-button:active {
+            background-color: #3367d6;
+            transform: translateY(1px);
         }
 
         </style>
@@ -220,7 +222,7 @@
         
 <body>
   <h1 id="main-title">Neural Network MNIST Model Trainer and Visualizer</h1>
-  <button onclick="window.location.href='pretrainedNets.html'" class="action-button">
+  <button onclick="window.location.href='pretrainedNets.html'" class="action-button" style="display: block; margin: 0 auto 20px auto;">
     See Pretrained Nets
 </button>
   <div id="app">
@@ -288,19 +290,20 @@
                         <option value="adam" selected>Adam</option>
                         <option value="sgd">SGD</option>
                     </select><br>
+                    <div>Learning Rate</div>
                     <input type="text" placeholder="learning rate" value="0.001"><br>
                     Loss&nbsp;
                     <select data-param="loss">
                         <option value="softmaxCrossEntropy">softmaxCrossEntropy</option>
                     </select>
                 </div>
-                <button id="startTrainingButton" class="action-button">Start Training</button>
+                <button id="startTrainingButton" class="action-button" style="background-color: #34a853; font-size: 15px; padding: 10px 18px; margin-top: 10px; width: 100%;">Start Training</button>
             </div>
         </div>
         <div class="layerAWG-container">
             <div class="container" id="netViz">
                 <div class="container" id="layersViz" data-is-loaded="false" style="display: block; width: 100%;">
-                    <div>2nd Convolution layer weights are averaged during visualization for performance reasons. Try changing filter amounts if you wish to observe performance and time changes.</div>
+                    <div style="color: #333;">2nd Convolution layer weights are averaged during visualization for performance reasons. Try changing filter amounts if you wish to observe performance and time changes.</div>
                 </div>
                 <div class="container" id="imgPerformance" style="margin-top: 20px;">
                 </div>
@@ -312,16 +315,6 @@
             <div id="demoGrid" style="margin-top: 20px;"></div>
         </div>
     </div>
-    
-    
-    <!-- <canvas id="userImage" width="280" height="280"style="border:1px solid #444; position:absolute; top:300px; right:450px;"></canvas>
-<button id="userClassifyButton" class="action-button" style="position: absolute; top: 300px; right: 100px;">Classify</button>
-    <button id="clearBtn" class="action-button" style="position: absolute; top: 300px; right: 100px;">Clear</button> -->
-    
-    
-    
-    
-
     <script src="./userTrainingExperience.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
