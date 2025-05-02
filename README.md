@@ -15,12 +15,12 @@ For who is reading this this:
  - pretrainedNets.html is the pretrained net visualization page.
  - userPretrainedNetsExperience.js is the logic for loading and visualizating the pretrained nets.
  - run.js in /API is used for my **VERCEL DEPLOYMENT**. I used **MONGO DB** for the pretrained network info.
-My files are indeed somewhat messy. userTrainingExperience.js which took the longest to complete (how to render successfully log full activations/gradients/weights and TF undefined/datasync hell AHHH before working it all out)
+My files are indeed somewhat messy. userTrainingExperience.js which took the longest to complete (how to render successfully log full activations/gradients/weights and TF datasync hell before working it all out)
 
 Bonuses: 
 - For the first five days I attempted to build a neural network from scratch in javascript (neuralNetMnist.js), doing the low level matmul operations myself in arrays. 
 I eventually learned it would've been far better to start with flat arrays and build up from there, but upon observing the complexity and the need to provide a working implementation for this project I decided to use Tensorflow.js, although that certainly didn't make the work trivial. 
-- runStaticTrainingTests.js (and a node deployment) was used to create and log the 50 identical networks to MongoDB for the pretrained net ensemble viewing page .
+- runStaticTrainingTests.js (and a node deployment) was used to create and log the 50 identical networks to MongoDB for the pretrained net ensemble viewing page.
 
 Unresolved non nicety: Due to the excessive use of await and async functions when rendering the images, there is currently a noticeable waterfall effect when the training first starts for the activations/gradients/weights visualizations.
 This would be a nice fix however the project has gotten incredibly long so I figured I'd leave it as is. The project still achieves its goals of visualization and training experience. 
