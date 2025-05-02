@@ -22,5 +22,5 @@ Bonuses:
 I eventually learned it would've been far better to start with flat arrays and build up from there, but upon observing the complexity and the need to provide a working implementation I decided to use Tensorflow.js, although that certainly didn't make the project trivial. 
 - runStaticTrainingTests.js (and a node deployment) was used to create and log the 50 identical networks to MongoDB for the pretrained net ensemble viewing page .
 
-Unresolved non-nicety: Due to the excessive use of await and async functions when rendering the images, there is currently a noticeable waterfall effect when the training first starts for the activations/gradients/weights visualizations.
+Unresolved non nicety: Due to the excessive use of await and async functions when rendering the images, there is currently a noticeable waterfall effect when the training first starts for the activations/gradients/weights visualizations.
 This would be a nice fix however the project has gotten incredibly long so I figured I'd leave it as is. The project still achieves its goals of visualization and training experience. 
