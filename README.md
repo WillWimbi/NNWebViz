@@ -17,9 +17,9 @@ Annoying issue: Due to the excessive use of await and async functions when rende
 This would be a nice fix however the project has gotten incredibly long so I figured I'd leave it as is. The project still achieves its goals of visualization and training experience. 
 
 For who is reading this this:
--**userTrainingExperience.js** is the *overwhelming* bulk of the work, what I mainly focused on (after I stopped working on the vanilla JS net from scratch attempt).
--index.html is main page.
--pretrainedNets.html is the pretrained net visualization page.
--userPretrainedNetsExperience.js is the logic for loading and visualizating the pretrained nets.
--run.js in /API is used for my **VERCEL DEPLOYMENT**. I used **MONGO DB** for the pretrained network info.
-My files are indeed somewhat messy. userTrainingExperience.js which took the longest to complete (how to render successfully log full activations/gradients/weights and TF undefined/datasync hell AHHH before working it all out)
+\n-**userTrainingExperience.js** is the *overwhelming* bulk of the work, what I mainly focused on (after I stopped working on the vanilla JS net from scratch attempt).
+\n-index.html is main page.
+\n-pretrainedNets.html is the pretrained net visualization page.
+\n-userPretrainedNetsExperience.js is the logic for loading and visualizating the pretrained nets.
+\n-run.js in /API is used for my **VERCEL DEPLOYMENT**. I used **MONGO DB** for the pretrained network info.
+\nMy files are indeed somewhat messy. userTrainingExperience.js which took the longest to complete (how to render successfully log full activations/gradients/weights and TF undefined/datasync hell AHHH before working it all out)
