@@ -2,7 +2,7 @@
 //and allowed for their subsequent comparisons.
 
 import { MongoClient, ServerApiVersion } from 'mongodb';
-const uri = "mongodb+srv://willwimbiscus:9Aug2005%21@cluster0.n0ocjfm.mongodb.net/mnistLab?retryWrites=true&w=majority";
+//const uri = not visible online!;
 
 let cached = global._mongoClient;
 
